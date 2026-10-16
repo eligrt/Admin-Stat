@@ -51,6 +51,11 @@ body{
 
 .tabbar{display:flex;background:var(--paper-hi);border-bottom:1px solid var(--paper-edge);margin-top:8px;direction:ltr;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;scrollbar-width:none;}
 .tabbar::-webkit-scrollbar{display:none;}
+.tabbar-wrap{position:relative;direction:ltr;}
+.tab-fade{position:absolute;top:8px;bottom:1px;width:34px;display:flex;align-items:center;pointer-events:none;opacity:0;transition:opacity .2s ease;font-size:22px;font-weight:700;line-height:1;color:var(--gold);z-index:3;}
+.tab-fade-l{left:0;justify-content:flex-start;padding-left:5px;background:linear-gradient(to right,var(--paper-hi) 35%,rgba(251,246,232,0));}
+.tab-fade-r{right:0;justify-content:flex-end;padding-right:5px;background:linear-gradient(to left,var(--paper-hi) 35%,rgba(251,246,232,0));}
+.tab-fade.show{opacity:1;}
 .tab-btn{flex:0 0 auto;min-width:84px;padding:12px 14px;white-space:nowrap;scroll-snap-align:center;background:transparent;border:none;border-bottom:2px solid transparent;font-family:var(--font-ui);font-size:12px;line-height:1.3;color:var(--ink-faint);cursor:pointer;text-align:center;}
 .tab-btn.active{background:var(--paper);border-bottom-color:var(--gold);color:var(--ink);font-weight:700;}
 .tab-btn-inner{position:relative;display:inline-block;}
@@ -176,6 +181,9 @@ body{
 .stale-flag{display:inline-block;font-size:8px;font-family:var(--font-mono);background:rgba(185,74,58,.12);color:var(--stamp-red);padding:0 4px;border-radius:3px;margin-right:3px;white-space:nowrap;}
 
 /* ── USAGE TREND RANGE SELECTOR ── */
+.tb-sub{font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--gold-deep);display:flex;align-items:center;gap:8px;margin:16px 0 8px;direction:ltr;}
+.tb-sub:first-child{margin-top:2px;}
+.tb-sub::after{content:"";flex:1;height:1px;background:var(--gold-lite);}
 .range-pills{display:flex;gap:6px;margin-bottom:8px;}
 .range-pill{flex:1;padding:6px 4px;background:transparent;border:1px solid var(--gold-lite);border-radius:5px;font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);cursor:pointer;}
 .range-pill.active{background:var(--ink);border-color:var(--ink);color:#f4ecdc;font-weight:700;}
@@ -235,7 +243,7 @@ body{
     <span style="display:inline-flex;align-items:baseline;gap:8px;"><span class="headline-num">-</span><span class="headline-label">OPENS</span></span>
   </div>
 
-  <div id="tabbar" class="tabbar" style="display:none;"></div>
+  <div class="tabbar-wrap" id="tabbarWrap"><div id="tabbar" class="tabbar" style="display:none;"></div><span class="tab-fade tab-fade-l" id="tabFadeL" aria-hidden="true">&#8249;</span><span class="tab-fade tab-fade-r" id="tabFadeR" aria-hidden="true">&#8250;</span></div>
 </div>
 
 <div class="content" id="content">
@@ -244,7 +252,7 @@ body{
 
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.61 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.67 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -773,6 +781,7 @@ function atisBuildTab(data,err){
 
   window._atisWeeks=atisBuildWeeks(entries);
   const weekly=window._atisWeeks.length?`
+    <div style="direction:ltr;text-align:left;">
     <div class="range-pills">
       <button class="range-pill" data-ar="4" onclick="atisSetRange('4')">4 WEEKS</button>
       <button class="range-pill" data-ar="12" onclick="atisSetRange('12')">12 WEEKS</button>
@@ -783,18 +792,57 @@ function atisBuildTab(data,err){
       <span>TO</span><select id="atisTo" onchange="atisOnCustom()"></select>
     </div>
     <div class="range-sum" id="atisSum"></div>
-    <div style="position:relative;width:100%;height:200px;"><canvas id="atisTrend"></canvas></div>`
+    <div style="position:relative;width:100%;height:200px;"><canvas id="atisTrend"></canvas></div>
+    </div>`
     :'<div class="empty">The weekly chart appears once the first ATIS is started.</div>';
 
   window._atisNeedsDraw=window._atisWeeks.length>0;
   return `<div class="atis-wrap">
-    <div class="section"><div class="section-title">WEEKLY - ATIS STARTED VS DONE</div><div class="section-box">${weekly}</div></div>
+    <div class="section"><div class="section-title">WEEKLY - ATIS STARTED VS DONE</div>${weekly}</div>
     <div class="section"><div class="section-title">BY AIRFIELD</div><div class="section-box">${apHtml}</div></div>
     <div class="section"><div class="section-title">DEVICES</div>
       <div class="dev-legend">Counts = started / done. Red "!" = not on the latest version${latest?' ('+atisEsc(latest)+')':''}.</div>
       ${atisRecencyGroups(entries,latest)}
     </div>
   </div>`;
+}
+
+// Line-chart look shared with the AirCheck tab: smooth ink line, value labels above the points,
+// optional second line (green) with "N (X%)" labels below, legend at the bottom.
+function adminLineChart(el,labels,main,second,mainName,secondName){
+  const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const ink=css('--ink')||'#1c3d6e',green=css('--cleared')||'#1f6f3f',faint=css('--ink-faint')||'#8a8578';
+  const grid='rgba(120,120,110,0.15)';
+  const dense=labels.length>16,pr=dense?1:3;
+  const labelsPlugin={id:'adminLineLabels',afterDatasetsDraw:function(c){
+    if(dense)return;
+    const ctx=c.ctx;ctx.save();ctx.textAlign='center';
+    const fitX=(t,x)=>{const h=ctx.measureText(t).width/2+2;return Math.min(Math.max(x,c.chartArea.left+h),c.width-h);};
+    ctx.font='600 11px sans-serif';ctx.fillStyle=ink;
+    c.getDatasetMeta(0).data.forEach((p,i)=>{const t=String(main[i]);ctx.fillText(t,fitX(t,p.x),p.y-8);});
+    if(second){
+      ctx.font='600 10px sans-serif';ctx.fillStyle=green;
+      c.getDatasetMeta(1).data.forEach((p,i)=>{
+        if(!main[i]&&!second[i])return;
+        const t=second[i]+(main[i]?' ('+Math.round(second[i]/main[i]*100)+'%)':'');
+        const y=p.y+15>c.chartArea.bottom-2?p.y-8:p.y+15;
+        ctx.fillText(t,fitX(t,p.x),y);
+      });
+    }
+    ctx.restore();
+  }};
+  const ds=[{label:mainName,data:main,borderColor:ink,backgroundColor:ink,borderWidth:second?2:2.5,tension:0.3,pointRadius:pr,pointBackgroundColor:ink}];
+  if(second)ds.push({label:secondName,data:second,borderColor:green,backgroundColor:green,borderWidth:2.5,tension:0.3,pointRadius:pr,pointBackgroundColor:green});
+  return new Chart(el,{
+    type:'line',
+    data:{labels:labels,datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18,bottom:6}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:10,boxHeight:10,font:{size:11},color:faint}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11},color:faint,autoSkip:true,maxRotation:0}},
+        y:{grid:{color:grid},ticks:{font:{size:11},color:faint,precision:0},beginAtZero:true}}},
+    plugins:[labelsPlugin]
+  });
 }
 
 let _atisRange='4',_atisFrom=null,_atisTo=null,_atisChart=null;
@@ -824,31 +872,7 @@ function atisDrawTrend(){
   if(sum)sum.textContent=`${all[a].full} - ${all[b].full} · ${slice.length} weeks · ${sumS} started · ${sumD} done${sumS?' ('+Math.round(sumD/sumS*100)+'%)':''}`+(_atisRange!=='custom'&&slice.length<parseInt(_atisRange,10)?' (tracking started later)':'');
   if(_atisChart){try{_atisChart.destroy();}catch(e){}_atisChart=null;}
   if(typeof Chart==='undefined'){el.parentNode.innerHTML='<div class="empty">The chart library could not load (no internet?).</div>';return;}
-  const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-  const ink=css('--ink')||'#1c3d6e',gold=css('--gold')||'#c8a04a',faint=css('--ink-faint')||'#8a7a5a';
-  const dense=slice.length>16;
-  const topLabels={id:'atisTopLabels',afterDatasetsDraw:function(c){
-    if(dense)return;
-    const ctx=c.ctx;ctx.save();ctx.font='600 10px sans-serif';ctx.textAlign='center';
-    c.data.datasets.forEach((ds,di)=>{
-      ctx.fillStyle=di===0?ink:'#8a6a1f';
-      c.getDatasetMeta(di).data.forEach((bar,i)=>{if(ds.data[i]>0)ctx.fillText(ds.data[i],bar.x,bar.y-4);});
-    });
-    ctx.restore();
-  }};
-  _atisChart=new Chart(el,{
-    type:'bar',
-    data:{labels:slice.map(w=>w.label),datasets:[
-      {label:'started',data:slice.map(w=>w.s),backgroundColor:ink,borderRadius:2},
-      {label:'done',data:slice.map(w=>w.d),backgroundColor:gold,borderRadius:2}
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:16}},
-      interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:10,boxHeight:10,font:{size:11},color:faint}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:11},color:faint,autoSkip:true,maxRotation:0}},
-        y:{grid:{color:'rgba(120,120,110,0.15)'},ticks:{font:{size:11},color:faint,precision:0},beginAtZero:true}}},
-    plugins:[topLabels]
-  });
+  _atisChart=adminLineChart(el,slice.map(w=>w.label),slice.map(w=>w.s),slice.map(w=>w.d),'started','done');
 }
 
 function getRank(n){
@@ -896,72 +920,126 @@ function updateLastUpdateLabel(){
 
 // ── TOOLBOX TAB ── data: toolbox/devices/{id}: os, pwaInstalled, appVersion, lastSeen, lastOpenedAt, opens,
 // daily/{YYYY-MM-DD}/o, taps/{tool}/{n,last}, more/{tool}
-const TB_TOOLS={
-  aircheck:'AirCheck',airtrack:'AirTrack',airnotam:'AirNotam-ISR',airatis:'AirATIS',airlog:'AirLog',merhav:'Merhav FPL',
-  wnb:'Weight & Balance',metar:'METAR / TAF',poh:'AirCheck POH',
-  'ext-fpl':'ext: FPL submission','ext-ims':'ext: IMS aviation','ext-notam':'ext: NOTAM check','ext-atc':'ext: ATC listening','ext-cx3':'ext: CX-3 calculator'
-};
-function tbLabel(k){return TB_TOOLS[k]||k;}
+// Groups mirror the three sections of the LSA-Toolbox page. Third item = hide while it has no taps (not live yet).
+const TB_GROUPS=[
+  {title:'MAIN TOOLS',fill:'var(--ink)',items:[['aircheck','AirCheck'],['airtrack','AirTrack',true],['airnotam','AirNotam-ISR'],['airatis','AirATIS'],['airlog','AirLog'],['merhav','Merhav FPL']]},
+  {title:'ALSO USEFUL',fill:'var(--ink)',items:[['wnb','Weight & Balance'],['metar','METAR / TAF'],['poh','AirCheck POH']]},
+  {title:'EXTERNAL LINKS',fill:'var(--gold)',items:[['ext-fpl','FPL submission'],['ext-ims','IMS aviation'],['ext-notam','NOTAM check'],['ext-atc','ATC listening'],['ext-cx3','CX-3 calculator']]}
+];
+function tbBuildWeeks(entries){
+  const map={};
+  entries.forEach(d=>{
+    const dl=d.daily;
+    if(!dl||typeof dl!=='object')return;
+    Object.entries(dl).forEach(([day,v])=>{
+      const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+      if(!m||!v||typeof v!=='object')return;
+      const dt=new Date(+m[1],+m[2]-1,+m[3]);
+      const sun=new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()-dt.getDay());
+      const key=sun.getFullYear()+'-'+atisPad(sun.getMonth()+1)+'-'+atisPad(sun.getDate());
+      const w=map[key]||(map[key]={o:0,ms:sun.getTime()});
+      w.o+=atisNum(v.o);
+    });
+  });
+  const keys=Object.keys(map).sort();
+  if(!keys.length)return[];
+  const first=new Date(map[keys[0]].ms);
+  const now=new Date(),cur=new Date(now.getFullYear(),now.getMonth(),now.getDate()-now.getDay());
+  const out=[];
+  for(let s=new Date(first.getFullYear(),first.getMonth(),first.getDate());s<=cur;s=new Date(s.getFullYear(),s.getMonth(),s.getDate()+7)){
+    const key=s.getFullYear()+'-'+atisPad(s.getMonth()+1)+'-'+atisPad(s.getDate());
+    const w=map[key]||{o:0};
+    out.push({label:ATIS_MON[s.getMonth()]+' '+s.getDate(),full:ATIS_MON[s.getMonth()]+' '+s.getDate()+', '+s.getFullYear(),o:w.o});
+  }
+  return out;
+}
 function toolboxBuildTab(data,err){
-  window._toolboxHeadline={d:0,o:0,t:0};
+  window._toolboxHeadline={d:0,o:0,t:0};window._tbNeedsDraw=false;
   if(err)return '<div class="empty">Could not read toolbox/devices.<br>'+atisEsc(err)+'<br>Check the database rules.</div>';
-  const entries=Object.entries(data||{}).map(([id,d])=>Object.assign({id},d));
-  if(!entries.length)return '<div class="empty">No data yet.<br>Devices appear here after they open the updated LSA-Toolbox (v1.68+).</div>';
-  const now=Date.now(),D=86400000,n=entries.length;
+  const entries=Object.entries(data||{}).filter(([k,p])=>p&&typeof p==='object').map(([id,d])=>Object.assign({id},d));
+  if(!entries.length)return '<div class="empty">No data yet.<br>Devices appear here after they open the updated LSA-Toolbox (v1.70+).</div>';
+  const n=entries.length;
   const opens=entries.reduce((s,d)=>s+atisNum(d.opens),0);
-  const tapTot={},moreTot={},tapDev={};
+  const tapTot={},tapDev={};
   let taps=0;
   entries.forEach(d=>{
     Object.entries(d.taps||{}).forEach(([k,v])=>{const c=atisNum(v&&v.n);if(!c)return;tapTot[k]=(tapTot[k]||0)+c;tapDev[k]=(tapDev[k]||0)+1;taps+=c;});
-    Object.entries(d.more||{}).forEach(([k,v])=>{const c=atisNum(v);if(c)moreTot[k]=(moreTot[k]||0)+c;});
   });
   window._toolboxHeadline={d:n,o:opens,t:taps};
-  const active24=entries.filter(d=>now-(d.lastSeen||0)<D).length;
-  const active7=entries.filter(d=>now-(d.lastSeen||0)<7*D).length;
-  const active30=entries.filter(d=>now-(d.lastSeen||0)<30*D).length;
-  const days=d=>Object.keys(d.daily||{}).length;
-  const returning=entries.filter(d=>days(d)>=2).length;
-  const pwa=entries.filter(d=>d.pwaInstalled).length;
 
-  const overview=section('OVERVIEW',
-    bigNumRow('Devices',n)+
-    bigNumRow('Active last 24h',active24)+
-    bigNumRow('Active last 7 days',active7)+
-    bigNumRow('Active last 30 days',active30)+
-    bigNumRow('Returning (2+ days)',returning+' · '+Math.round(returning/n*100)+'%')+
-    bigNumRow('Installed (PWA)',pwa+' · '+Math.round(pwa/n*100)+'%')
-  );
-  const tapRows=Object.entries(tapTot).sort((a,b)=>b[1]-a[1]).map(([k,c])=>{
-    const pct=taps>0?Math.round(c/taps*100):0;
-    return `<div class="bar-row"><div class="bar-labels"><span class="lbl">${atisEsc(tbLabel(k))}</span><span class="val">${c} taps &middot; ${tapDev[k]} devices &middot; ${pct}%</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--gold);"></div></div></div>`;
-  }).join('')||'<div class="empty">No taps yet.</div>';
-  const moreMax=Math.max(1,...Object.values(moreTot));
-  const moreRows=Object.entries(moreTot).sort((a,b)=>b[1]-a[1]).map(([k,c])=>barRow(atisEsc(tbLabel(k)),c,moreMax,'var(--ink)')).join('')||'<div class="empty">No expansions yet.</div>';
+  // 1) tool taps - one box, three groups divided like the LSA-Toolbox page
+  const known=new Set();
+  const row=(label,k,fill)=>{
+    const c=tapTot[k]||0,pct=taps>0?Math.round(c/taps*100):0;
+    return `<div class="bar-row"><div class="bar-labels"><span class="lbl">${atisEsc(label)}</span><span class="val">${c} taps &middot; ${tapDev[k]||0} devices &middot; ${pct}%</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${fill};"></div></div></div>`;
+  };
+  let tapHtml=TB_GROUPS.map(g=>{
+    const rows=g.items.filter(it=>!(it[2]&&!(tapTot[it[0]]>0))).map(it=>{known.add(it[0]);return row(it[1],it[0],g.fill);}).join('');
+    return `<div class="tb-sub">${g.title}</div>${rows}`;
+  }).join('');
+  const extra=Object.keys(tapTot).filter(k=>!known.has(k));
+  if(extra.length)tapHtml+=`<div class="tb-sub">OTHER</div>`+extra.map(k=>row(k,k,'var(--ink)')).join('');
 
-  // opens per day, last 14 days (local dates, as written by the Toolbox)
-  const dayTot={};
-  entries.forEach(d=>Object.entries(d.daily||{}).forEach(([day,v])=>{dayTot[day]=(dayTot[day]||0)+atisNum(v&&v.o);}));
-  const dayRows=[];
-  for(let i=0;i<14;i++){
-    const dt=new Date(now-i*D),p=v=>String(v).padStart(2,'0');
-    const key=dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate());
-    dayRows.push([key,dayTot[key]||0]);
-  }
-  const dayMax=Math.max(1,...dayRows.map(r=>r[1]));
-  const dayHtml=dayRows.map(([k,c])=>barRow(k.slice(5),c,dayMax,'var(--ink)')).join('');
+  // 2) opens per week (range pills like the AirATIS tab)
+  window._tbWeeks=tbBuildWeeks(entries);
+  const weekly=window._tbWeeks.length?`
+    <div style="direction:ltr;text-align:left;">
+    <div class="range-pills">
+      <button class="range-pill" data-tr="4" onclick="tbSetRange('4')">4 WEEKS</button>
+      <button class="range-pill" data-tr="12" onclick="tbSetRange('12')">12 WEEKS</button>
+      <button class="range-pill" data-tr="custom" onclick="tbSetRange('custom')">CUSTOM</button>
+    </div>
+    <div class="range-custom" id="tbCustom">
+      <span>FROM</span><select id="tbFrom" onchange="tbOnCustom()"></select>
+      <span>TO</span><select id="tbTo" onchange="tbOnCustom()"></select>
+    </div>
+    <div class="range-sum" id="tbSum"></div>
+    <div style="position:relative;width:100%;height:180px;"><canvas id="tbTrend"></canvas></div>
+    </div>`
+    :'<div class="empty">The weekly chart appears after the first opens are recorded.</div>';
+  window._tbNeedsDraw=window._tbWeeks.length>0;
 
-  const verCounts={},osCounts={};
-  entries.forEach(d=>{const v=d.appVersion||'unknown';verCounts[v]=(verCounts[v]||0)+1;const o=d.os||'unknown';osCounts[o]=(osCounts[o]||0)+1;});
-  const versions=Object.keys(verCounts).sort((a,b)=>compareVersions(b,a));
-  const verHtml=versions.map((v,i)=>barRow(atisEsc(v)+(i>0&&v!=='unknown'?' (old)':''),verCounts[v],n,i===0?'var(--cleared)':'var(--amber)')).join('');
-  const osHtml=Object.entries(osCounts).sort((a,b)=>b[1]-a[1]).map(([o,c])=>barRow(osIcon(o)+' '+atisEsc(o),c,n,'var(--ink)')).join('');
+  // 3) OS distribution, same as the AirCheck tab
+  const osCounts={iOS:0,Android:0,Desktop:0};
+  entries.forEach(d=>{osCounts[d.os==='iOS'||d.os==='Android'?d.os:'Desktop']++;});
+  const osHtml=
+    barRow('iOS',osCounts.iOS,n,'var(--ink)')+
+    barRow('Android',osCounts.Android,n,'var(--cleared)')+
+    barRow('Desktop',osCounts.Desktop,n,'var(--amber)');
 
-  return overview+
-    section('TOOL TAPS',tapRows)+
-    section('"מידע נוסף" EXPANSIONS',moreRows)+
-    section('OPENS PER DAY - LAST 14',dayHtml)+
-    section('VERSIONS',verHtml)+
-    section('PLATFORM',osHtml);
+  return `<div class="section"><div class="section-title">WEEKLY - LSA TOOLBOX OPENS</div>${weekly}</div>`+
+    section('TOOL TAPS',tapHtml)+
+    section('OS DISTRIBUTION',osHtml);
+}
+
+let _tbRange='4',_tbFrom=null,_tbTo=null,_tbChart=null;
+window.tbSetRange=function(r){_tbRange=r;tbDrawTrend();};
+window.tbOnCustom=function(){
+  _tbFrom=parseInt(document.getElementById('tbFrom').value,10);
+  _tbTo=parseInt(document.getElementById('tbTo').value,10);
+  tbDrawTrend();
+};
+function tbDrawTrend(){
+  const el=document.getElementById('tbTrend');
+  const all=window._tbWeeks||[],n=all.length;
+  if(!el||!n)return;
+  if(_tbFrom===null||_tbTo===null||_tbTo>=n||_tbFrom>=n){_tbTo=n-1;_tbFrom=Math.max(0,n-8);}
+  let a,b;
+  if(_tbRange==='custom'){a=Math.min(_tbFrom,_tbTo);b=Math.max(_tbFrom,_tbTo);}
+  else{b=n-1;a=Math.max(0,n-parseInt(_tbRange,10));}
+  const slice=all.slice(a,b+1);
+  document.querySelectorAll('.range-pill[data-tr]').forEach(p=>p.classList.toggle('active',p.dataset.tr===_tbRange));
+  const cw=document.getElementById('tbCustom');
+  if(cw)cw.classList.toggle('open',_tbRange==='custom');
+  const opts=all.map((w,i)=>`<option value="${i}">${w.full}</option>`).join('');
+  const fs=document.getElementById('tbFrom'),ts=document.getElementById('tbTo');
+  if(fs&&ts){fs.innerHTML=opts;ts.innerHTML=opts;fs.value=String(a);ts.value=String(b);}
+  const sumO=slice.reduce((x,w)=>x+w.o,0);
+  const sum=document.getElementById('tbSum');
+  if(sum)sum.textContent=`${all[a].full} - ${all[b].full} · ${slice.length} weeks · ${sumO} opens`+(_tbRange!=='custom'&&slice.length<parseInt(_tbRange,10)?' (tracking started later)':'');
+  if(_tbChart){try{_tbChart.destroy();}catch(e){}_tbChart=null;}
+  if(typeof Chart==='undefined'){el.parentNode.innerHTML='<div class="empty">The chart library could not load (no internet?).</div>';return;}
+  _tbChart=adminLineChart(el,slice.map(w=>w.label),slice.map(w=>w.o),null,'opens',null);
 }
 
 async function loadStats(){
@@ -1098,6 +1176,10 @@ async function loadStats(){
 
     const tabs=[
       {
+        id:'toolbox',label:'LSA<br>Toolbox',alert:false,
+        html: toolboxBuildTab(window._adminToolbox,window._adminToolboxErr)
+      },
+      {
         id:'aircheck',label:'AirCheck',alert:communityPending>0,
         html:
           accSection('usage','USAGE',buildUsageTab(data),'')+
@@ -1115,10 +1197,6 @@ async function loadStats(){
       {
         id:'merhav',label:'MERHAV<br>FPL',alert:false,
         html:'<div class="empty">MERHAV_fpl admin<br>Coming soon.</div>'
-      },
-      {
-        id:'toolbox',label:'Toolbox',alert:false,
-        html: toolboxBuildTab(window._adminToolbox,window._adminToolboxErr)
       },
       {
         id:'links',label:'Links<br>& METAR',alert:false,
@@ -1157,7 +1235,7 @@ async function loadStats(){
     ];
 
     window._adminTabs=tabs;
-    const tabToShow=tabs.some(t=>t.id===_activeTab)?_activeTab:'aircheck';
+    const tabToShow=tabs.some(t=>t.id===_activeTab)?_activeTab:'toolbox';
     renderTabBar(tabToShow);
     renderContent(tabToShow);
 
@@ -1167,7 +1245,7 @@ async function loadStats(){
 }
 
 // Old links (?tab=usage / devices / customchecklist) now open the AirCheck tab with that section expanded
-let _activeTab=new URLSearchParams(window.location.search).get('tab')||'aircheck';
+let _activeTab=new URLSearchParams(window.location.search).get('tab')||'toolbox';
 (function(){
   const legacy={usage:'usage',devices:'devices',customchecklist:'checklist'};
   if(legacy[_activeTab]){_openSecs.add(legacy[_activeTab]);_activeTab='aircheck';}
@@ -1189,8 +1267,16 @@ window.renderTabBar=function(activeId){
     const left=act.offsetLeft-(bar.clientWidth-act.offsetWidth)/2;
     bar.scrollTo({left:Math.max(0,left),behavior:window._tabbarScroll==null?'auto':'smooth'});
   }
-  bar.onscroll=()=>{window._tabbarScroll=bar.scrollLeft;};
+  bar.onscroll=()=>{window._tabbarScroll=bar.scrollLeft;updateTabFades();};
+  updateTabFades();
 };
+window.updateTabFades=function(){
+  const bar=document.getElementById('tabbar'),l=document.getElementById('tabFadeL'),r=document.getElementById('tabFadeR');
+  if(!bar||!l||!r)return;
+  l.classList.toggle('show',bar.scrollLeft>4);
+  r.classList.toggle('show',bar.scrollLeft+bar.clientWidth<bar.scrollWidth-4);
+};
+window.addEventListener('resize',()=>window.updateTabFades&&window.updateTabFades());
 
 window.renderContent=function(activeId){
   const tabs=window._adminTabs;
@@ -1215,6 +1301,7 @@ window.renderContent=function(activeId){
   ['hlAirCheck','hlAtis','hlLinks','hlFuture','hlToolbox','hlPlaceholder'].forEach(id=>{document.getElementById(id).style.display=(id===hlShow)?'flex':'none';});
   if(activeId==='aircheck'&&_openSecs.has('usage'))initUsageCharts();
   if(isAtis&&window._atisNeedsDraw)atisDrawTrend();
+  if(activeId==='toolbox'&&window._tbNeedsDraw)tbDrawTrend();
 };
 
 let _usageCharts=[];
