@@ -276,13 +276,19 @@ button.lsa-foot-slot{cursor:pointer;padding:8px 0;}
 .hdr-fam .hdr-clock-lbl{font-size:10px;opacity:.75;letter-spacing:.18em}
 .hdr-fam .hdr-utc{font-size:21px;font-weight:700;line-height:1}
 
-.poh-tblwrap{border:1px solid var(--paper-edge);border-radius:10px;background:var(--paper-hi);overflow:hidden}
+.poh-tblwrap{border:1px solid var(--paper-edge);border-radius:10px;background:var(--paper-hi);overflow:hidden;overflow:clip}
+.poh-tblwrap,.poh-tblwrap *{overscroll-behavior:auto}
 .poh-tbl{width:100%;border-collapse:collapse;font-size:11px;direction:ltr;table-layout:auto}
 .poh-tbl th{background:var(--ink);color:var(--paper-hi);padding:8px 5px;font-weight:600;font-size:10.5px;text-align:left;white-space:nowrap}
 .poh-tbl td{padding:8px 5px;border-bottom:1px solid var(--paper-edge);white-space:nowrap;text-align:left;color:var(--ink-body,#1a1308)}
 .poh-tbl tr:last-child td{border-bottom:none}
 .poh-tbl .m{font-family:var(--font-mono,monospace);font-size:10.5px}
 .poh-tbl .c{text-align:center}
+.poh-row{cursor:pointer}.poh-row.sel td{background:rgba(200,160,74,.28)}
+.poh-detail td{background:var(--paper);padding:8px 10px;white-space:normal}
+.poh-dhead{font-family:var(--font-mono,monospace);font-size:9.5px;letter-spacing:.12em;color:var(--ink-faint,#8a8578);margin-bottom:6px}
+.poh-rec{display:flex;justify-content:space-between;font-family:var(--font-mono,monospace);font-size:11px;padding:3px 0;border-bottom:1px dashed var(--paper-edge)}
+
 .poh-del{background:transparent;border:1px solid rgba(179,38,30,.4);color:#b3261e;width:24px;height:24px;border-radius:6px;font-size:11px;cursor:pointer;line-height:1;padding:0}
 .poh-del:active{background:rgba(179,38,30,.12)}
 </style>
@@ -360,7 +366,7 @@ button.lsa-foot-slot{cursor:pointer;padding:8px 0;}
 <div class="lsa-foot" dir="ltr">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="lsa-foot-slot icon-refresh" id="footerRefreshBtn" onclick="refreshStats()" style="opacity:1;overflow:visible"><span class="refresh-glyph">↻</span><span id="lastUpdateLabel" style="opacity:.75">—</span></span>
-  <span class="lsa-foot-ver">AIRCHECK_ADMIN · v1.87 · built by eligrt</span>
+  <span class="lsa-foot-ver">AIRCHECK_ADMIN · v1.90 · built by eligrt</span>
   <button type="button" class="lsa-foot-reload" onclick="forceReload()">reload</button>
 </div>
 
@@ -1154,8 +1160,9 @@ function tbDrawTrend(){
 
 
 /* ===== AIRCHECK POH tab (same project: poh/devices/{id}: os, pwaInstalled, appVersion, lastSeen, opens, viaTb, viaDirect, daily/{YYYY-MM-DD}/o) ===== */
-let _pohRange='4',_pohChart=null;
+let _pohRange='4',_pohFrom=null,_pohTo=null,_pohChart=null;
 window.pohSetRange=function(r){_pohRange=r;pohDrawTrend();};
+window.pohOnCustom=function(){_pohFrom=parseInt(document.getElementById('pohFrom').value,10);_pohTo=parseInt(document.getElementById('pohTo').value,10);pohDrawTrend();};
 function pohWeeks(devs){
   const wk=day=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(day);if(!m)return null;const d=new Date(+m[1],+m[2]-1,+m[3]);return new Date(d.getFullYear(),d.getMonth(),d.getDate()-d.getDay()).getTime();};
   const map={};
@@ -1167,7 +1174,7 @@ function pohWeeks(devs){
   const out=[];
   for(let s=new Date(keys[0]);s.getTime()<=cur;s=new Date(s.getFullYear(),s.getMonth(),s.getDate()+7)){
     const w=map[s.getTime()]||{o:0,devs:new Set()};
-    out.push({label:ATIS_MON[s.getMonth()]+' '+s.getDate(),o:w.o,d:w.devs.size});}
+    out.push({label:ATIS_MON[s.getMonth()]+' '+s.getDate(),full:ATIS_MON[s.getMonth()]+' '+s.getDate()+', '+s.getFullYear(),o:w.o,d:w.devs.size});}
   return out;
 }
 function pohDrawTrend(){
@@ -1176,10 +1183,18 @@ function pohDrawTrend(){
   const all=window._pohWeeks||[],n=all.length,sum=document.getElementById('pohSum');
   if(_pohChart){try{_pohChart.destroy();}catch(e){}_pohChart=null;}
   if(!n){if(sum)sum.textContent='No daily history yet';return;}
-  const k=_pohRange==='all'?n:Math.min(parseInt(_pohRange,10),n),slice=all.slice(n-k);
+  if(_pohFrom===null||_pohTo===null||_pohTo>=n||_pohFrom>=n){_pohTo=n-1;_pohFrom=Math.max(0,n-8);}
+  let a,b;
+  if(_pohRange==='custom'){a=Math.min(_pohFrom,_pohTo);b=Math.max(_pohFrom,_pohTo);}
+  else{b=n-1;a=Math.max(0,n-parseInt(_pohRange,10));}
+  const slice=all.slice(a,b+1);
+  const cw=document.getElementById('pohCustom');if(cw)cw.classList.toggle('open',_pohRange==='custom');
+  const opts=all.map((w,i)=>'<option value="'+i+'">'+w.full+'</option>').join('');
+  const fs=document.getElementById('pohFrom'),ts=document.getElementById('pohTo');
+  if(fs&&ts){fs.innerHTML=opts;ts.innerHTML=opts;fs.value=String(a);ts.value=String(b);}
   const labels=slice.map(w=>w.label),opens=slice.map(w=>w.o),devs=slice.map(w=>w.d);
   const so=opens.reduce((x,y)=>x+y,0);
-  if(sum)sum.innerHTML='ALL DEVICES &middot; '+slice.length+' wks &middot; <span style="color:#1c3d6e">&#9632;</span> '+so+' opens &nbsp;<span style="color:#c8a04a">&#9632;</span> devices per week';
+  if(sum)sum.innerHTML=(window._pohSel?'Device '+atisEsc(String(window._pohSel).slice(0,8))+' &middot; ':'')+all[a].full+' - '+all[b].full+' &middot; '+slice.length+' weeks &middot; <span style="color:#1c3d6e">&#9632;</span> '+so+' opens &nbsp;<span style="color:#c8a04a">&#9632;</span> devices per week';
   if(typeof Chart==='undefined'){el.parentNode.innerHTML='<div class="empty">The chart library could not load (no internet?).</div>';return;}
   const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   const ink=css('--ink')||'#1c3d6e',gold=css('--gold')||'#c8a04a',faint=css('--ink-faint')||'#8a8578',grid='rgba(120,120,110,0.15)';
@@ -1215,23 +1230,45 @@ function pohBuildTab(data,err){
     vTb+=atisNum(p.viaTb);vDir+=atisNum(p.viaDirect);
   });
   const n=devs.length;
-  window._pohHeadline={d:n,o:total,w:wWeek};
+  window._pohHeadline={d:n,o:total,w:wWeek};window._pohSel=null;window._pohAll=devs;window._pohDevMap={};devs.forEach(p=>{window._pohDevMap[p.id]=p;});
   window._pohWeeks=pohWeeks(devs);window._pohNeedsDraw=true;
   const fd=ts=>{if(!ts)return '-';const d=new Date(ts);return d.getDate()+'/'+(d.getMonth()+1)+'/'+String(d.getFullYear()).slice(2);};
   const rows=devs.slice().sort((a,b)=>atisNum(b.lastSeen)-atisNum(a.lastSeen)).map(p=>
-    '<tr><td class="m">'+atisEsc(String(p.id).slice(0,8))+'</td><td>'+atisEsc(p.os||'Desktop')+'</td><td class="m c">'+p._opens+'</td><td class="m">'+fd(atisNum(p.lastSeen))+'</td><td class="m">'+atisEsc(p.appVersion||'-')+'</td>'+
-    '<td class="c"><button class="poh-del" onclick="pohDelDevice(\''+atisEsc(p.id).replace(/'/g,'')+'\')" aria-label="Delete device">&#10005;</button></td></tr>').join('');
+    '<tr class="poh-row" data-id="'+atisEsc(p.id)+'" onclick="pohSelect(this.dataset.id)"><td class="m">'+atisEsc(String(p.id).slice(0,8))+'</td><td>'+atisEsc(p.os||'Desktop')+'</td><td class="m c">'+p._opens+'</td><td class="m">'+fd(atisNum(p.lastSeen))+'</td><td class="m">'+atisEsc(p.appVersion||'-')+'</td>'+
+    '<td class="c"><button class="poh-del" onclick="event.stopPropagation();pohDelDevice(\''+atisEsc(p.id).replace(/'/g,'')+'\')" aria-label="Delete device">&#10005;</button></td></tr>').join('');
   const chart='<div style="direction:ltr;text-align:left;">'+
-    '<div class="range-pills"><button class="range-pill" data-pr="4" onclick="pohSetRange(\'4\')">4 WEEKS</button><button class="range-pill" data-pr="12" onclick="pohSetRange(\'12\')">12 WEEKS</button><button class="range-pill" data-pr="all" onclick="pohSetRange(\'all\')">ALL</button></div>'+
+    '<div class="range-pills"><button class="range-pill" data-pr="4" onclick="pohSetRange(\'4\')">4 WEEKS</button><button class="range-pill" data-pr="12" onclick="pohSetRange(\'12\')">12 WEEKS</button><button class="range-pill" data-pr="custom" onclick="pohSetRange(\'custom\')">CUSTOM</button></div>'+
+    '<div class="range-custom" id="pohCustom"><span>FROM</span><select id="pohFrom" onchange="pohOnCustom()"></select><span>TO</span><select id="pohTo" onchange="pohOnCustom()"></select></div>'+
     '<div class="range-sum" id="pohSum"></div><div style="position:relative;width:100%;height:112px;"><canvas id="pohTrend"></canvas></div></div>';
   const vTot=vTb+vDir;
   const via=vTot?section('HOW OPENED',barRow('Via Toolbox',vTb,vTot,'var(--ink)')+barRow('Direct (own icon or link)',vDir,vTot,'var(--amber)')):'';
   return '<div class="al-sticky">'+chart+'</div>'+
-    section('DEVICES',bigNumRow('Total opens',total.toLocaleString())+bigNumRow('Devices',n)+bigNumRow('Active devices (7 days)',active7)+bigNumRow('New devices (7 days)',new7))+
     via+
     section('OS DISTRIBUTION',barRow('iOS',os.iOS,n,'var(--ink)')+barRow('Android',os.Android,n,'var(--cleared)')+barRow('Desktop',os.Desktop,n,'var(--amber)'))+
-    '<div class="section"><div class="section-title">DEVICES - MOST RECENTLY ACTIVE FIRST</div><div class="poh-tblwrap"><table class="poh-tbl"><thead><tr><th>Device</th><th>OS</th><th class="c">Opens</th><th>Last</th><th>Version</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    '<div class="section"><div class="section-title">DEVICES - TAP A ROW FOR ITS CHART AND USAGE</div><div class="poh-tblwrap"><table class="poh-tbl"><thead><tr><th>Device</th><th>OS</th><th class="c">Opens</th><th>Last</th><th>Version</th><th></th></tr></thead><tbody id="pohBody">'+rows+'</tbody></table></div></div>';
 }
+
+window.pohSelect=function(id){
+  const same=window._pohSel===id;window._pohSel=same?null:id;
+  const body=document.getElementById('pohBody');
+  if(body){
+    body.querySelectorAll('tr.poh-detail').forEach(r=>r.remove());
+    body.querySelectorAll('tr.poh-row').forEach(r=>r.classList.toggle('sel',!same&&r.dataset.id===id));
+    if(!same){
+      const p=window._pohDevMap[id],tr=body.querySelector('tr.poh-row.sel');
+      if(p&&tr){
+        const days=Object.entries(p.daily||{}).filter(([d])=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort((a,b)=>a[0]<b[0]?1:-1);
+        const rec=days.length?days.map(([d,v])=>{const m=d.split('-');return '<div class="poh-rec"><span>'+(+m[2])+'/'+(+m[1])+'/'+m[0].slice(2)+'</span><span>'+atisNum(v&&v.o)+(atisNum(v&&v.o)===1?' open':' opens')+'</span></div>';}).join(''):'<div class="poh-rec"><span>No daily records</span></div>';
+        const extra=(atisNum(p.viaTb)||atisNum(p.viaDirect))?'<div class="poh-rec" style="opacity:.75"><span>Via Toolbox '+atisNum(p.viaTb)+' &middot; Direct '+atisNum(p.viaDirect)+'</span></div>':'';
+        const d=document.createElement('tr');d.className='poh-detail';
+        d.innerHTML='<td colspan="6"><div class="poh-dhead">USAGE RECORDS - '+atisEsc(String(id).slice(0,8))+' (newest first)</div>'+rec+extra+'</td>';
+        tr.after(d);
+      }
+    }
+  }
+  window._pohWeeks=pohWeeks(same?window._pohAll:[window._pohDevMap[id]]);
+  pohDrawTrend();
+};
 
 /* ===== AIRLOG tab (prototype data shape: airlog/devices/{userId}) ===== */
 function alBuildWeeks(entries,sel){
