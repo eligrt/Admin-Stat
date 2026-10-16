@@ -191,6 +191,15 @@ body{
 .stale-flag{display:inline-block;font-size:8px;font-family:var(--font-mono);background:rgba(185,74,58,.12);color:var(--stamp-red);padding:0 4px;border-radius:3px;margin-right:3px;white-space:nowrap;}
 
 /* ── USAGE TREND RANGE SELECTOR ── */
+.al-user{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--paper-edge);direction:ltr;}
+.al-user:last-child{border-bottom:0;}
+.al-user .nm{flex:1;min-width:0;font-weight:600;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.al-user .nm small{display:block;font-family:var(--font-mono);font-weight:400;font-size:9.5px;color:var(--ink-faint);letter-spacing:.04em;margin-top:1px;}
+.al-user .fl{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--gold-deep);min-width:38px;text-align:right;}
+.al-user .fl small{display:block;font-weight:400;font-size:8.5px;color:var(--ink-faint);letter-spacing:.08em;}
+.al-dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--cleared);}
+.al-dot.idle{background:var(--amber);}.al-dot.cold{background:var(--paper-edge);}
+.fun-note{font-family:var(--font-mono);font-size:9.5px;color:var(--ink-faint);letter-spacing:.04em;margin-top:8px;direction:ltr;text-align:left;}
 .tb-sub{font-family:var(--font-mono);font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--gold-deep);display:flex;align-items:center;gap:8px;margin:16px 0 8px;direction:ltr;}
 .tb-sub:first-child{margin-top:2px;}
 .tb-sub::after{content:"";flex:1;height:1px;background:var(--gold-lite);}
@@ -240,6 +249,12 @@ body{
     <div class="headline-item"><span class="headline-num gold" id="hlTbTaps">0</span><span class="headline-label">TOOL TAPS</span></div>
   </div>
 
+  <div class="headline" id="hlAirlog" style="display:none;direction:ltr;justify-content:center;gap:28px;">
+    <div class="headline-item"><span class="headline-num" id="hlAlUsers">0</span><span class="headline-label">DEVICES</span></div>
+    <div class="headline-item"><span class="headline-num gold" id="hlAlFlights">0</span><span class="headline-label">FLIGHTS</span></div>
+    <div class="headline-item"><span class="headline-num" id="hlAlOpens">0</span><span class="headline-label">OPENS / WK</span></div>
+  </div>
+
   <div class="headline" id="hlLinks" style="display:none;direction:ltr;justify-content:center;gap:48px;">
     <span style="display:inline-flex;align-items:baseline;gap:8px;"><span class="headline-num" id="hlLinksTaps">0</span><span class="headline-label">LINK TAPS</span></span>
     <span style="display:inline-flex;align-items:baseline;gap:8px;"><span class="headline-num" id="hlLinksMetar">0</span><span class="headline-label">METAR OPENS</span></span>
@@ -263,7 +278,7 @@ body{
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.69 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.70 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1053,6 +1068,84 @@ function tbDrawTrend(){
   _tbChart=adminLineChart(el,slice.map(w=>w.label),slice.map(w=>w.o),null,'opens',null);
 }
 
+
+/* ===== AIRLOG tab (prototype data shape: airlog/devices/{userId}) ===== */
+function alBuildWeeks(entries){
+  const map={};
+  entries.forEach(d=>{Object.entries(d.daily||{}).forEach(([day,v])=>{
+    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(day);if(!m||!v)return;
+    const dt=new Date(+m[1],+m[2]-1,+m[3]),sun=new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()-dt.getDay());
+    const key=sun.getTime();const w=map[key]||(map[key]={o:0,f:0,ms:key});w.o+=atisNum(v.o);w.f+=atisNum(v.f);
+  });});
+  const keys=Object.keys(map).map(Number).sort((a,b)=>a-b);if(!keys.length)return[];
+  const now=new Date(),cur=new Date(now.getFullYear(),now.getMonth(),now.getDate()-now.getDay()).getTime();
+  const out=[];for(let s=new Date(keys[0]);s.getTime()<=cur;s=new Date(s.getFullYear(),s.getMonth(),s.getDate()+7)){
+    const w=map[s.getTime()]||{o:0,f:0};out.push({label:ATIS_MON[s.getMonth()]+' '+s.getDate(),full:ATIS_MON[s.getMonth()]+' '+s.getDate()+', '+s.getFullYear(),o:w.o,f:w.f});}
+  return out;
+}
+function alNames(){try{return JSON.parse(localStorage.getItem('adminAlNames')||'{}');}catch(e){return {};}}
+function alName(id){const n=alNames()[id];return n||('Device '+id.slice(0,4));}
+window.alRename=function(id){
+  const cur=alNames()[id]||'';
+  const v=prompt('Name for this device (stays in this browser only):',cur);
+  if(v===null)return;
+  const m=alNames();if(v.trim())m[id]=v.trim().slice(0,30);else delete m[id];
+  try{localStorage.setItem('adminAlNames',JSON.stringify(m));}catch(e){}
+  if(window._adminTabs){const t=window._adminTabs.find(x=>x.id==='airlog');if(t){t.html=airlogBuildTab(window._adminAirlog,window._adminAirlogErr);}renderContent('airlog');}
+};
+function airlogBuildTab(data,err){
+  window._airlogHeadline={u:0,f:0,o:0};window._alNeedsDraw=false;
+  if(err)return '<div class="empty">Could not read airlog/devices.<br>'+atisEsc(err)+'</div>';
+  const entries=Object.entries(data||{}).filter(([k,p])=>p&&typeof p==='object').map(([id,d])=>Object.assign({id},d));
+  if(!entries.length)return '<div class="empty">No data yet.<br>Devices appear here after they open AirLog v2.34.038 or later.</div>';
+  const n=entries.length,DAY=86400000,now=Date.now();
+  const flights=entries.reduce((s,d)=>s+atisNum(d.flights),0);
+  const wkOpens=entries.reduce((s,d)=>s+Object.entries(d.daily||{}).reduce((a,[day,v])=>a+((now-new Date(day).getTime())<7*DAY?atisNum(v&&v.o):0),0),0);
+  window._airlogHeadline={u:n,f:flights,o:wkOpens};
+  window._alWeeks=alBuildWeeks(entries);window._alNeedsDraw=window._alWeeks.length>0;
+  const weekly=`<div style="direction:ltr;text-align:left;">
+    <div class="range-pills">
+      <button class="range-pill" data-ar="4" onclick="alSetRange('4')">4 WEEKS</button>
+      <button class="range-pill" data-ar="12" onclick="alSetRange('12')">12 WEEKS</button>
+      <button class="range-pill" data-ar="custom" onclick="alSetRange('custom')">CUSTOM</button>
+    </div>
+    <div class="range-custom" id="alCustom"><span>FROM</span><select id="alFrom" onchange="alOnCustom()"></select><span>TO</span><select id="alTo" onchange="alOnCustom()"></select></div>
+    <div class="range-sum" id="alSum"></div>
+    <div style="position:relative;width:100%;height:180px;"><canvas id="alTrend"></canvas></div></div>`;
+  // onboarding funnel (setup flags exist only for devices that ran AirLog v2.34.038 or later)
+  const started=entries.filter(d=>d.setupStarted).length,done=entries.filter(d=>d.setupDone).length,first=entries.filter(d=>atisNum(d.flights)>0).length,active=entries.filter(d=>now-atisNum(d.lastSeen)<14*DAY).length;
+  const fun=barRow('Devices seen',n,n,'var(--ink)')+barRow('Setup started',started,n,'var(--ink)')+barRow('Setup completed',done,n,'var(--ink)')+barRow('Logged a first flight',first,n,'var(--gold)')+barRow('Active, last 14 days',active,n,'var(--cleared)')+
+    `<div class="fun-note">% OF ALL DEVICES SEEN. SETUP FLAGS COUNT ONLY FROM AIRLOG v2.34.038</div>`;
+  // users
+  const ago=ts=>{const d=Math.floor((now-ts)/DAY);return d<=0?'today':d===1?'yesterday':d+'d ago';};
+  const users=entries.slice().sort((a,b)=>atisNum(b.lastSeen)-atisNum(a.lastSeen)).map(d=>{
+    const age=(now-atisNum(d.lastSeen))/DAY;const cls=age<7?'':age<30?' idle':' cold';
+    return `<div class="al-user" onclick="alRename(\''+d.id+'\')" style="cursor:pointer;"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${atisEsc(d.os||'')} &middot; ${atisEsc(d.appVersion||'')} &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>FLIGHTS</small></div></div>`;}).join('');
+  const os={iOS:0,Android:0,Desktop:0};entries.forEach(d=>{os[d.os==='iOS'||d.os==='Android'?d.os:'Desktop']++;});
+  const osHtml=barRow('iOS',os.iOS,n,'var(--ink)')+barRow('Android',os.Android,n,'var(--cleared)')+barRow('Desktop',os.Desktop,n,'var(--amber)');
+  return `<div class="section"><div class="section-title">WEEKLY - AIRLOG OPENS &amp; FLIGHTS</div>${weekly}</div>`+
+    section('ONBOARDING FUNNEL',fun)+
+    section('DEVICES ('+n+')',users+'<div class="fun-note">TAP A DEVICE TO GIVE IT A NAME. SAVED ONLY IN THIS BROWSER</div>')+
+    section('OS DISTRIBUTION',osHtml);
+}
+let _alRange='4',_alFrom=null,_alTo=null,_alChart=null;
+window.alSetRange=function(r){_alRange=r;alDrawTrend();};
+window.alOnCustom=function(){_alFrom=parseInt(document.getElementById('alFrom').value,10);_alTo=parseInt(document.getElementById('alTo').value,10);alDrawTrend();};
+function alDrawTrend(){
+  const el=document.getElementById('alTrend'),all=window._alWeeks||[],n=all.length;if(!el||!n)return;
+  if(_alFrom===null||_alTo===null||_alTo>=n||_alFrom>=n){_alTo=n-1;_alFrom=Math.max(0,n-8);}
+  let a,b;if(_alRange==='custom'){a=Math.min(_alFrom,_alTo);b=Math.max(_alFrom,_alTo);}else{b=n-1;a=Math.max(0,n-parseInt(_alRange,10));}
+  const slice=all.slice(a,b+1);
+  document.querySelectorAll('.range-pill[data-ar]').forEach(p=>p.classList.toggle('active',p.dataset.ar===_alRange));
+  const cw=document.getElementById('alCustom');if(cw)cw.classList.toggle('open',_alRange==='custom');
+  const opts=all.map((w,i)=>`<option value="${i}">${w.full}</option>`).join('');
+  const fs=document.getElementById('alFrom'),ts=document.getElementById('alTo');if(fs&&ts){fs.innerHTML=opts;ts.innerHTML=opts;fs.value=String(a);ts.value=String(b);}
+  const so=slice.reduce((x,w)=>x+w.o,0),sf=slice.reduce((x,w)=>x+w.f,0),sum=document.getElementById('alSum');
+  if(sum)sum.textContent=`${all[a].full} - ${all[b].full} · ${slice.length} weeks · ${so} opens · ${sf} flights`;
+  if(_alChart){try{_alChart.destroy();}catch(e){}_alChart=null;}
+  _alChart=adminLineChart(el,slice.map(w=>w.label),slice.map(w=>w.o),slice.map(w=>w.f),'opens','flights logged');
+}
+
 async function loadStats(){
   try{
     const pilotRef=ref(db,'pilots');
@@ -1068,6 +1161,7 @@ async function loadStats(){
       const atisSnap=await get(ref(db,'airatis/devices'));
       window._adminAtis=atisSnap.val()||{};window._adminAtisErr=null;
     }catch(e){window._adminAtis={};window._adminAtisErr=(e&&e.message)||String(e);}
+    try{const alSnap=await get(ref(db,'airlog/devices'));window._adminAirlog=alSnap.val()||{};window._adminAirlogErr=null;}catch(e){window._adminAirlog={};window._adminAirlogErr=(e&&e.message)||String(e);}
     // Toolbox hub usage: toolbox/devices/{id} (written anonymously by LSA-Toolbox)
     try{
       const tbSnap=await get(ref(db,'toolbox/devices'));
@@ -1202,6 +1296,10 @@ async function loadStats(){
         html: atisBuildTab(window._adminAtis,window._adminAtisErr)
       },
       {
+        id:'airlog',label:'AirLog',alert:false,
+        html: airlogBuildTab(window._adminAirlog,window._adminAirlogErr)
+      },
+      {
         id:'notam',label:'AirNotam<br>ISR',alert:false,
         html:'<div class="empty">AirNotam-ISR admin<br>Coming soon.</div>'
       },
@@ -1306,14 +1404,17 @@ window.renderContent=function(activeId){
   const lh=window._linksHeadline||{taps:0,metar:0};
   document.getElementById('hlLinksTaps').textContent=lh.taps;
   document.getElementById('hlLinksMetar').textContent=lh.metar;
+  const ah=window._airlogHeadline||{u:0,f:0,o:0};
+  document.getElementById('hlAlUsers').textContent=ah.u;document.getElementById('hlAlFlights').textContent=ah.f;document.getElementById('hlAlOpens').textContent=ah.o;
   const fh=window._futureHeadline||{ranked:0,lists:0};
   document.getElementById('hlFutureRanked').textContent=fh.ranked;
   document.getElementById('hlFutureLists').textContent=fh.lists;
-  const hlShow={aircheck:'hlAirCheck',future:'hlFuture',atis:'hlAtis',links:'hlLinks',toolbox:'hlToolbox',notam:'hlPlaceholder',merhav:'hlPlaceholder'}[activeId]||'hlAirCheck';
-  ['hlAirCheck','hlAtis','hlLinks','hlFuture','hlToolbox','hlPlaceholder'].forEach(id=>{document.getElementById(id).style.display=(id===hlShow)?'flex':'none';});
+  const hlShow={aircheck:'hlAirCheck',future:'hlFuture',atis:'hlAtis',links:'hlLinks',toolbox:'hlToolbox',airlog:'hlAirlog',notam:'hlPlaceholder',merhav:'hlPlaceholder'}[activeId]||'hlAirCheck';
+  ['hlAirCheck','hlAtis','hlLinks','hlFuture','hlToolbox','hlAirlog','hlPlaceholder'].forEach(id=>{document.getElementById(id).style.display=(id===hlShow)?'flex':'none';});
   if(activeId==='aircheck'&&_openSecs.has('usage'))initUsageCharts();
   if(isAtis&&window._atisNeedsDraw)atisDrawTrend();
   if(activeId==='toolbox'&&window._tbNeedsDraw)tbDrawTrend();
+  if(activeId==='airlog'&&window._alNeedsDraw)alDrawTrend();
 };
 
 let _usageCharts=[];
