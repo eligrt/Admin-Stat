@@ -278,7 +278,7 @@ body{
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.70 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.72 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1083,21 +1083,12 @@ function alBuildWeeks(entries){
     const w=map[s.getTime()]||{o:0,f:0};out.push({label:ATIS_MON[s.getMonth()]+' '+s.getDate(),full:ATIS_MON[s.getMonth()]+' '+s.getDate()+', '+s.getFullYear(),o:w.o,f:w.f});}
   return out;
 }
-function alNames(){try{return JSON.parse(localStorage.getItem('adminAlNames')||'{}');}catch(e){return {};}}
-function alName(id){const n=alNames()[id];return n||('Device '+id.slice(0,4));}
-window.alRename=function(id){
-  const cur=alNames()[id]||'';
-  const v=prompt('Name for this device (stays in this browser only):',cur);
-  if(v===null)return;
-  const m=alNames();if(v.trim())m[id]=v.trim().slice(0,30);else delete m[id];
-  try{localStorage.setItem('adminAlNames',JSON.stringify(m));}catch(e){}
-  if(window._adminTabs){const t=window._adminTabs.find(x=>x.id==='airlog');if(t){t.html=airlogBuildTab(window._adminAirlog,window._adminAirlogErr);}renderContent('airlog');}
-};
+function alName(id){const d=(window._adminAirlog||{})[id]||{};return d.name||('Device '+id.slice(0,4));}
 function airlogBuildTab(data,err){
   window._airlogHeadline={u:0,f:0,o:0};window._alNeedsDraw=false;
   if(err)return '<div class="empty">Could not read airlog/devices.<br>'+atisEsc(err)+'</div>';
   const entries=Object.entries(data||{}).filter(([k,p])=>p&&typeof p==='object').map(([id,d])=>Object.assign({id},d));
-  if(!entries.length)return '<div class="empty">No data yet.<br>Devices appear here after they open AirLog v2.34.038 or later.</div>';
+  if(!entries.length)return '<div class="empty">No data yet.<br>Devices appear here after they open AirLog v2.34.040 or later.</div>';
   const n=entries.length,DAY=86400000,now=Date.now();
   const flights=entries.reduce((s,d)=>s+atisNum(d.flights),0);
   const wkOpens=entries.reduce((s,d)=>s+Object.entries(d.daily||{}).reduce((a,[day,v])=>a+((now-new Date(day).getTime())<7*DAY?atisNum(v&&v.o):0),0),0);
@@ -1112,20 +1103,15 @@ function airlogBuildTab(data,err){
     <div class="range-custom" id="alCustom"><span>FROM</span><select id="alFrom" onchange="alOnCustom()"></select><span>TO</span><select id="alTo" onchange="alOnCustom()"></select></div>
     <div class="range-sum" id="alSum"></div>
     <div style="position:relative;width:100%;height:180px;"><canvas id="alTrend"></canvas></div></div>`;
-  // onboarding funnel (setup flags exist only for devices that ran AirLog v2.34.038 or later)
-  const started=entries.filter(d=>d.setupStarted).length,done=entries.filter(d=>d.setupDone).length,first=entries.filter(d=>atisNum(d.flights)>0).length,active=entries.filter(d=>now-atisNum(d.lastSeen)<14*DAY).length;
-  const fun=barRow('Devices seen',n,n,'var(--ink)')+barRow('Setup started',started,n,'var(--ink)')+barRow('Setup completed',done,n,'var(--ink)')+barRow('Logged a first flight',first,n,'var(--gold)')+barRow('Active, last 14 days',active,n,'var(--cleared)')+
-    `<div class="fun-note">% OF ALL DEVICES SEEN. SETUP FLAGS COUNT ONLY FROM AIRLOG v2.34.038</div>`;
   // users
   const ago=ts=>{const d=Math.floor((now-ts)/DAY);return d<=0?'today':d===1?'yesterday':d+'d ago';};
   const users=entries.slice().sort((a,b)=>atisNum(b.lastSeen)-atisNum(a.lastSeen)).map(d=>{
     const age=(now-atisNum(d.lastSeen))/DAY;const cls=age<7?'':age<30?' idle':' cold';
-    return `<div class="al-user" onclick="alRename(\''+d.id+'\')" style="cursor:pointer;"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${atisEsc(d.os||'')} &middot; ${atisEsc(d.appVersion||'')} &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>FLIGHTS</small></div></div>`;}).join('');
+    return `<div class="al-user"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${atisEsc(d.os||'')} &middot; ${atisEsc(d.appVersion||'')} &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>FLIGHTS</small></div></div>`;}).join('');
   const os={iOS:0,Android:0,Desktop:0};entries.forEach(d=>{os[d.os==='iOS'||d.os==='Android'?d.os:'Desktop']++;});
   const osHtml=barRow('iOS',os.iOS,n,'var(--ink)')+barRow('Android',os.Android,n,'var(--cleared)')+barRow('Desktop',os.Desktop,n,'var(--amber)');
   return `<div class="section"><div class="section-title">WEEKLY - AIRLOG OPENS &amp; FLIGHTS</div>${weekly}</div>`+
-    section('ONBOARDING FUNNEL',fun)+
-    section('DEVICES ('+n+')',users+'<div class="fun-note">TAP A DEVICE TO GIVE IT A NAME. SAVED ONLY IN THIS BROWSER</div>')+
+    section('DEVICES ('+n+')',users)+
     section('OS DISTRIBUTION',osHtml);
 }
 let _alRange='4',_alFrom=null,_alTo=null,_alChart=null;
