@@ -278,7 +278,7 @@ body{
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.73 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.74 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1129,7 +1129,7 @@ function airlogBuildTab(data,err){
   return `<div class="section"><div class="section-title">WEEKLY - AIRLOG OPENS &amp; FLIGHTS</div>${weekly}</div>`+
     section('USERS ('+n+')',users)+
     section('OS DISTRIBUTION',osHtml)+
-    section('IMPORT FROM OLD ADMIN',`<div style="direction:ltr;text-align:left;"><button class="range-pill" style="width:100%;" onclick="alImport()">IMPORT OLD DATA (ONE TIME)</button><div class="fun-note" id="alImpMsg">READS THE OLD AIRLOG ADMIN SHEET AND COPIES USERS, FLIGHTS AND OPENS INTO FIREBASE. SAFE TO RUN AGAIN.</div></div>`);
+    section('IMPORT FROM OLD ADMIN',`<div style="direction:ltr;text-align:left;"><button class="range-pill" style="width:100%;" onclick="alImport()">IMPORT OLD DATA (ONE TIME)</button><textarea id="alImpTxt" placeholder="OR PASTE THE JSON HERE" style="width:100%;height:70px;margin-top:10px;font-size:12px;direction:ltr;"></textarea><div style="display:flex;gap:8px;margin-top:6px;"><button class="range-pill" style="flex:1;" onclick="alImportPaste()">IMPORT PASTED</button><label class="range-pill" style="flex:1;text-align:center;cursor:pointer;">CHOOSE FILE<input type="file" accept=".json,.txt" style="display:none" onchange="alImportFile(this)"></label></div><div class="fun-note" id="alImpMsg">READS THE OLD AIRLOG ADMIN SHEET AND COPIES USERS, FLIGHTS AND OPENS INTO FIREBASE. SAFE TO RUN AGAIN.</div></div>`);
 }
 let _alRange='4',_alFrom=null,_alTo=null,_alChart=null;
 window.alSetRange=function(r){_alRange=r;alDrawTrend();};
@@ -1164,12 +1164,24 @@ function alParseDate(str){
   const x=new Date(str);return isNaN(x.getTime())?new Date(0):x;
 }
 window.alImport=async function(){
-  const msg=document.getElementById('alImpMsg');const say=t=>{if(msg)msg.textContent=t;};
+  const say=t=>{const m=document.getElementById('alImpMsg');if(m)m.textContent=t;};
   if(!confirm('Copy the old AirLog admin data into Firebase now?'))return;
+  try{say('READING OLD DATA...');const res=await fetch(AL_OLD_GAS+'?action=getEvents');await alImportData(await res.json());}
+  catch(e){say('DIRECT READ FAILED ('+((e&&e.message)||e)+'). USE PASTE OR FILE BELOW.');}
+};
+window.alImportPaste=async function(){
+  const t=(document.getElementById('alImpTxt')||{}).value||'';
+  try{await alImportData(JSON.parse(t.trim()));}catch(e){const m=document.getElementById('alImpMsg');if(m)m.textContent='BAD JSON: '+((e&&e.message)||e);}
+};
+window.alImportFile=function(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;const r=new FileReader();
+  r.onload=async()=>{try{await alImportData(JSON.parse(r.result));}catch(e){const m=document.getElementById('alImpMsg');if(m)m.textContent='BAD FILE: '+((e&&e.message)||e);}};
+  r.readAsText(f);
+};
+async function alImportData(data){
+  const msg=document.getElementById('alImpMsg');const say=t=>{if(msg)msg.textContent=t;};
   try{
-    say('READING OLD DATA...');
-    const res=await fetch(AL_OLD_GAS+'?action=getEvents');const data=await res.json();
-    const ev=(data&&data.events)||[];
+    const ev=(data&&data.events)||(Array.isArray(data)?data:[]);
     if(!ev.length){say('NO EVENTS FOUND IN THE OLD ADMIN.');return;}
     const users={};
     ev.forEach(e=>{
@@ -1202,7 +1214,7 @@ window.alImport=async function(){
     say('DONE: '+ok+' USERS COPIED'+(fail?(', '+fail+' FAILED (CHECK THE RULES)'):'')+' FROM '+ev.length+' EVENTS.');
     if(ok&&typeof refreshStats==='function')setTimeout(refreshStats,800);
   }catch(e){say('IMPORT FAILED: '+((e&&e.message)||e));}
-};
+}
 
 async function loadStats(){
   try{
