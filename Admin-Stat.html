@@ -271,6 +271,12 @@ body{
     <div class="headline-item"><span class="headline-num" id="hlAlOpens">0</span><span class="headline-label">OPENS / WK</span></div>
   </div>
 
+  <div class="headline" id="hlMerhav" style="display:none;direction:ltr;justify-content:center;gap:28px;">
+    <div class="headline-item"><span class="headline-num" id="hlMhDevices">0</span><span class="headline-label">DEVICES</span></div>
+    <div class="headline-item"><span class="headline-num gold" id="hlMhPlans">0</span><span class="headline-label">PLANS</span></div>
+    <div class="headline-item"><span class="headline-num" id="hlMhOpens">0</span><span class="headline-label">OPENS / WK</span></div>
+  </div>
+
   <div class="headline" id="hlLinks" style="display:none;direction:ltr;justify-content:center;gap:48px;">
     <span style="display:inline-flex;align-items:baseline;gap:8px;"><span class="headline-num" id="hlLinksTaps">0</span><span class="headline-label">LINK TAPS</span></span>
     <span style="display:inline-flex;align-items:baseline;gap:8px;"><span class="headline-num" id="hlLinksMetar">0</span><span class="headline-label">METAR OPENS</span></span>
@@ -291,10 +297,10 @@ body{
   <div class="loading">טוען נתונים...</div>
 </div>
 
-<div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
+<div class="footer-strip" dir="ltr" style="position:relative;min-height:calc(41px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.78 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.80 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1098,7 +1104,10 @@ function alBuildWeeks(entries,sel){
     const w=map[s.getTime()]||{o:0,f:0};out.push({label:ATIS_MON[s.getMonth()]+' '+s.getDate(),full:ATIS_MON[s.getMonth()]+' '+s.getDate()+', '+s.getFullYear(),o:w.o,f:w.f});}
   return out;
 }
-function alName(id){const d=(window._adminAirlog||{})[id]||{};return d.name||('Device '+id.slice(0,4));}
+const AL_CFG={node:'airlog',tab:'airlog',hk:'_airlogHeadline',unit:'FLIGHTS',unitL:'flights',users:'USERS',empty:'Users appear here after they open AirLog v2.34.040 or later.',via:'COUNTED FROM AIRLOG V2.34.044. EARLIER OPENS ARE NOT SPLIT.'};
+const MH_CFG={node:'merhav',tab:'merhav',hk:'_merhavHeadline',unit:'PLANS',unitL:'plans',users:'DEVICES',empty:'Devices appear here after they open Merhav FPL v1.01.098 or later.',via:'COUNTED FROM MERHAV V1.01.098.',
+  map:function(raw){const o={};Object.entries(raw||{}).forEach(([id,d])=>{if(!d||typeof d!=='object')return;const dd={};Object.entries(d.daily||{}).forEach(([day,v])=>{dd[day]={o:v&&v.o,f:v&&v.p};});o[id]=Object.assign({},d,{flights:d.plans||0,daily:dd});});return o;}};
+function alName(id){const d=(window._alRaw||window._adminAirlog||{})[id]||{};return d.name||('Device '+id.slice(0,4));}
 function alMerge(entries){
   const groups={},out=[];
   const one=(g)=>{
@@ -1120,14 +1129,14 @@ window.alSetTest=async function(ids,val){
   const list=String(ids).split(',').filter(i=>/^[a-z0-9]{8,32}$/.test(i));
   try{
     for(const id of list){
-      const r=await fetch(AL_FB_URL+'/airlog/devices/'+id+'.json',{method:'PATCH',body:JSON.stringify({test:!!val})});
+      const r=await fetch(AL_FB_URL+'/'+((window._alCfg||AL_CFG).node)+'/devices/'+id+'.json',{method:'PATCH',body:JSON.stringify({test:!!val})});
       if(!r.ok)throw new Error('HTTP '+r.status+' - publish the updated Firebase rules');
     }
   }catch(e){alert('Could not update: '+((e&&e.message)||e));return;}
-  const raw=window._adminAirlog||{};list.forEach(id=>{if(raw[id])raw[id].test=!!val;});
-  const tab=(window._adminTabs||[]).find(t=>t.id==='airlog');if(!tab)return;
-  tab.html=airlogBuildTab(raw,null);
-  const c=document.getElementById('content'),st=c.scrollTop;renderContent('airlog');c.scrollTop=st;
+  const C=window._alCfg||AL_CFG,raw=window._alSrc||{};list.forEach(id=>{if(raw[id])raw[id].test=!!val;});
+  const tab=(window._adminTabs||[]).find(t=>t.id===C.tab);if(!tab)return;
+  tab.html=airlogBuildTab(raw,null,C);
+  const c=document.getElementById('content'),st=c.scrollTop;renderContent(C.tab);c.scrollTop=st;
 };
 window._alSelId=null;
 window.alSelect=function(id,row){
@@ -1137,16 +1146,18 @@ window.alSelect=function(id,row){
   const sel=window._alSelId?(window._alMap||{})[window._alSelId]:null;
   window._alWeeks=alBuildWeeks(window._alEntries||[],sel);window._alVals=sel?[sel]:(window._alEntries||[]);alDrawTrend();
 };
-function airlogBuildTab(data,err){
-  window._airlogHeadline={u:0,f:0,o:0};window._alNeedsDraw=false;
-  if(err)return '<div class="empty">Could not read airlog/devices.<br>'+atisEsc(err)+'</div>';
-  const all=alMerge(Object.entries(data||{}).filter(([k,p])=>p&&typeof p==='object').map(([id,d])=>Object.assign({id},d)));
+function airlogBuildTab(data,err,cfg){
+  const C=cfg||AL_CFG;window._alCfg=C;window._alSrc=data||{};
+  const rawM=C.map?C.map(data||{}):(data||{});window._alRaw=rawM;
+  window[C.hk]={u:0,f:0,o:0};window._alNeedsDraw=false;
+  if(err)return '<div class="empty">Could not read '+C.node+'/devices.<br>'+atisEsc(err)+'</div>';
+  const all=alMerge(Object.entries(rawM).filter(([k,p])=>p&&typeof p==='object').map(([id,d])=>Object.assign({id},d)));
   const tests=all.filter(d=>d.isTest),entries=all.filter(d=>!d.isTest);
-  if(!all.length)return '<div class="empty">No data yet.<br>Users appear here after they open AirLog v2.34.040 or later.</div>';
+  if(!all.length)return '<div class="empty">No data yet.<br>'+C.empty+'</div>';
   const n=entries.length,DAY=86400000,now=Date.now();
   const flights=entries.reduce((s,d)=>s+atisNum(d.flights),0);
   const wkOpens=entries.reduce((s,d)=>s+Object.entries(d.daily||{}).reduce((a,[day,v])=>a+((now-new Date(day).getTime())<7*DAY?atisNum(v&&v.o):0),0),0);
-  window._airlogHeadline={u:n,f:flights,o:wkOpens};
+  window[C.hk]={u:n,f:flights,o:wkOpens};
   window._alEntries=entries;window._alMap={};all.forEach(d=>{window._alMap[d.id]=d;});
   if(window._alSelId&&!window._alMap[window._alSelId])window._alSelId=null;
   const selE=window._alSelId?window._alMap[window._alSelId]:null;
@@ -1165,9 +1176,9 @@ function airlogBuildTab(data,err){
   const row=(d,isT)=>{
     const age=(now-atisNum(d.lastSeen))/DAY;const cls=age<7?'':age<30?' idle':' cold';
     const ids=d.devList.map(x=>x.id).join(',');
-    const det=d.devList.map(x=>`<div class="al-d">${atisEsc(String(x.id).slice(0,6))} &middot; ${atisEsc(x.os||'?')} &middot; ${atisEsc(x.appVersion||'')}${x.pwaInstalled?' &middot; PWA':''}<br><small>${ago(atisNum(x.lastSeen))} &middot; ${atisNum(x.opens)} opens &middot; ${atisNum(x.flights)} flights${(x.viaTb||x.viaDirect)?' &middot; '+atisNum(x.viaTb)+' via Toolbox / '+atisNum(x.viaDirect)+' direct':''}</small></div>`).join('');
+    const det=d.devList.map(x=>`<div class="al-d">${atisEsc(String(x.id).slice(0,6))} &middot; ${atisEsc(x.os||'?')} &middot; ${atisEsc(x.appVersion||'')}${x.pwaInstalled?' &middot; PWA':''}<br><small>${ago(atisNum(x.lastSeen))} &middot; ${atisNum(x.opens)} opens &middot; ${atisNum(x.flights)} ${C.unitL}${(x.viaTb||x.viaDirect)?' &middot; '+atisNum(x.viaTb)+' via Toolbox / '+atisNum(x.viaDirect)+' direct':''}</small></div>`).join('');
     const on=window._alSelId===d.id;
-    return `<div class="al-grp${isT?' istest':''}${on?' open sel':''}"><div class="al-user" onclick="alSelect('${d.id}',this)"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${d.devs>1?d.devs+' devices':'1 device'} &middot; ${atisNum(d.opens)} opens &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>FLIGHTS</small></div><span class="al-chev">&rsaquo;</span></div><div class="al-det">${det}<button class="al-tbtn" onclick="alSetTest('${ids}',${isT?'false':'true'})">${isT?'UNMARK TEST DEVICE':'MARK AS TEST DEVICE'}</button></div></div>`;};
+    return `<div class="al-grp${isT?' istest':''}${on?' open sel':''}"><div class="al-user" onclick="alSelect('${d.id}',this)"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${d.devs>1?d.devs+' devices':'1 device'} &middot; ${atisNum(d.opens)} opens &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>${C.unit}</small></div><span class="al-chev">&rsaquo;</span></div><div class="al-det">${det}<button class="al-tbtn" onclick="alSetTest('${ids}',${isT?'false':'true'})">${isT?'UNMARK TEST DEVICE':'MARK AS TEST DEVICE'}</button></div></div>`;};
   const byLast=(a,b)=>atisNum(b.lastSeen)-atisNum(a.lastSeen);
   const users=entries.slice().sort(byLast).map(d=>row(d,false)).join('')||'<div class="empty">No users.</div>';
   const testRows=tests.slice().sort(byLast).map(d=>row(d,true)).join('');
@@ -1175,10 +1186,10 @@ function airlogBuildTab(data,err){
   entries.forEach(d=>d.devList.forEach(x=>{os[x.os==='iOS'||x.os==='Android'?x.os:'Desktop']++;nd++;}));
   let vTb=0,vDir=0;entries.forEach(d=>d.devList.forEach(x=>{vTb+=atisNum(x.viaTb);vDir+=atisNum(x.viaDirect);}));
   const vTot=vTb+vDir;
-  const viaHtml=vTot?(barRow('Via Toolbox',vTb,vTot,'var(--ink)')+barRow('Direct (own icon or link)',vDir,vTot,'var(--amber)')+'<div class="fun-note">COUNTED FROM AIRLOG V2.34.044. EARLIER OPENS ARE NOT SPLIT.</div>'):'<div class="empty">No data yet. Appears once users update AirLog to v2.34.044 or later.</div>';
+  const viaHtml=vTot?(barRow('Via Toolbox',vTb,vTot,'var(--ink)')+barRow('Direct (own icon or link)',vDir,vTot,'var(--amber)')+'<div class="fun-note">'+C.via+'</div>'):'<div class="empty">No data yet. Appears once users update to the latest version.</div>';
   const osHtml=barRow('iOS',os.iOS,nd,'var(--ink)')+barRow('Android',os.Android,nd,'var(--cleared)')+barRow('Desktop',os.Desktop,nd,'var(--amber)');
   return `<div class="al-sticky">${weekly}</div>`+
-    section('USERS ('+n+')',users)+
+    section(C.users+' ('+n+')',users)+
     section('HOW OPENED',viaHtml)+section('OS DISTRIBUTION (DEVICES: '+nd+')',osHtml)+(tests.length?section('TEST DEVICES ('+tests.length+') - EXCLUDED',testRows):'');
 }
 let _alRange='4',_alChart=null;
@@ -1226,9 +1237,9 @@ function alDrawTrend(){
     labels=slice.map(w=>w.label);mo=slice.map(w=>w.o);mf=slice.map(w=>w.f);unit=slice.length+' wks';
   }
   const so=mo.reduce((x,y)=>x+y,0),sf=mf.reduce((x,y)=>x+y,0),sum=document.getElementById('alSum');
-  if(sum){const se=window._alSelId?(window._alMap||{})[window._alSelId]:null;sum.innerHTML=atisEsc(se?alName(se.id):'ALL USERS')+` &middot; ${unit} &middot; <span style="color:#1c3d6e">&#9632;</span> ${so} opens <span style="color:#1f6f3f">&#9632;</span> ${sf} flights`;}
+  if(sum){const se=window._alSelId?(window._alMap||{})[window._alSelId]:null;sum.innerHTML=atisEsc(se?alName(se.id):'ALL USERS')+` &middot; ${unit} &middot; <span style="color:#1c3d6e">&#9632;</span> ${so} opens <span style="color:#1f6f3f">&#9632;</span> ${sf} ${(window._alCfg||AL_CFG).unitL}`;}
   if(_alChart){try{_alChart.destroy();}catch(e){}_alChart=null;}
-  _alChart=adminLineChart(el,labels,mo,mf,'opens','flights logged',true);
+  _alChart=adminLineChart(el,labels,mo,mf,'opens',(window._alCfg||AL_CFG).unitL,true);
 }
 
 const AL_FB_URL='https://aircheck-80530-default-rtdb.europe-west1.firebasedatabase.app';
@@ -1249,6 +1260,7 @@ async function loadStats(){
       window._adminAtis=atisSnap.val()||{};window._adminAtisErr=null;
     }catch(e){window._adminAtis={};window._adminAtisErr=(e&&e.message)||String(e);}
     try{const alSnap=await get(ref(db,'airlog/devices'));window._adminAirlog=alSnap.val()||{};window._adminAirlogErr=null;}catch(e){window._adminAirlog={};window._adminAirlogErr=(e&&e.message)||String(e);}
+    try{const mhSnap=await get(ref(db,'merhav/devices'));window._adminMerhav=mhSnap.val()||{};window._adminMerhavErr=null;}catch(e){window._adminMerhav={};window._adminMerhavErr=(e&&e.message)||String(e);}
     // Toolbox hub usage: toolbox/devices/{id} (written anonymously by LSA-Toolbox)
     try{
       const tbSnap=await get(ref(db,'toolbox/devices'));
@@ -1392,7 +1404,7 @@ async function loadStats(){
       },
       {
         id:'merhav',label:'MERHAV<br>FPL',alert:false,
-        html:'<div class="empty">MERHAV_fpl admin<br>Coming soon.</div>'
+        html: airlogBuildTab(window._adminMerhav,window._adminMerhavErr,MH_CFG)
       },
       {
         id:'links',label:'Links<br>& METAR',alert:false,
@@ -1478,6 +1490,9 @@ window.addEventListener('resize',()=>window.updateTabFades&&window.updateTabFade
 window.renderContent=function(activeId){
   const tabs=window._adminTabs;
   const tab=tabs.find(t=>t.id===activeId);
+  // AirLog and Merhav share the chart code, so rebuild the shown tab to point the shared state at its own data
+  if(activeId==='airlog')tab.html=airlogBuildTab(window._adminAirlog,window._adminAirlogErr,AL_CFG);
+  else if(activeId==='merhav')tab.html=airlogBuildTab(window._adminMerhav,window._adminMerhavErr,MH_CFG);
   document.getElementById('content').innerHTML=tab.html;
   const h=window._atisHeadline||{d:0,s:0,n:0};
   document.getElementById('hlAtisDevices').textContent=h.d;
@@ -1493,15 +1508,16 @@ window.renderContent=function(activeId){
   document.getElementById('hlLinksMetar').textContent=lh.metar;
   const ah=window._airlogHeadline||{u:0,f:0,o:0};
   document.getElementById('hlAlUsers').textContent=ah.u;document.getElementById('hlAlFlights').textContent=ah.f;document.getElementById('hlAlOpens').textContent=ah.o;
+  const mh=window._merhavHeadline||{u:0,f:0,o:0};document.getElementById('hlMhDevices').textContent=mh.u;document.getElementById('hlMhPlans').textContent=mh.f;document.getElementById('hlMhOpens').textContent=mh.o;
   const fh=window._futureHeadline||{ranked:0,lists:0};
   document.getElementById('hlFutureRanked').textContent=fh.ranked;
   document.getElementById('hlFutureLists').textContent=fh.lists;
-  const hlShow={aircheck:'hlAirCheck',future:'hlFuture',atis:'hlAtis',links:'hlLinks',toolbox:'hlToolbox',airlog:'hlAirlog',notam:'hlPlaceholder',merhav:'hlPlaceholder'}[activeId]||'hlAirCheck';
-  ['hlAirCheck','hlAtis','hlLinks','hlFuture','hlToolbox','hlAirlog','hlPlaceholder'].forEach(id=>{document.getElementById(id).style.display=(id===hlShow)?'flex':'none';});
+  const hlShow={aircheck:'hlAirCheck',future:'hlFuture',atis:'hlAtis',links:'hlLinks',toolbox:'hlToolbox',airlog:'hlAirlog',notam:'hlPlaceholder',merhav:'hlMerhav'}[activeId]||'hlAirCheck';
+  ['hlAirCheck','hlAtis','hlLinks','hlFuture','hlToolbox','hlAirlog','hlMerhav','hlPlaceholder'].forEach(id=>{document.getElementById(id).style.display=(id===hlShow)?'flex':'none';});
   if(activeId==='aircheck'&&_openSecs.has('usage'))initUsageCharts();
   if(isAtis&&window._atisNeedsDraw)atisDrawTrend();
   if(activeId==='toolbox'&&window._tbNeedsDraw)tbDrawTrend();
-  if(activeId==='airlog'&&window._alNeedsDraw)alDrawTrend();
+  if((activeId==='airlog'||activeId==='merhav')&&window._alNeedsDraw)alDrawTrend();
 };
 
 let _usageCharts=[];
