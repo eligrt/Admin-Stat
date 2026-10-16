@@ -66,6 +66,11 @@ body{
 .tab-btn-inner{position:relative;display:inline-block;}
 .tab-dot{position:absolute;top:-2px;right:-10px;width:6px;height:6px;border-radius:50%;background:var(--amber);}
 
+.scroll-btn{position:absolute;left:50%;bottom:calc(100% + 10px);width:38px;height:38px;border-radius:50%;background:var(--paper-hi);border:1px solid var(--paper-edge);display:grid;place-items:center;z-index:16;box-shadow:0 4px 14px rgba(43,38,32,.12);transform:translateX(-50%);animation:bob 1.8s ease-in-out infinite;padding:0;cursor:pointer;transition:opacity .35s ease}
+.scroll-btn svg{width:18px;height:18px;stroke:#8a6a2a;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.scroll-btn.hide{opacity:0;pointer-events:none}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(4px)}}
+@media (prefers-reduced-motion:reduce){.scroll-btn{animation:none}}
 .content{padding:14px 16px 24px;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .content::-webkit-scrollbar{display:none;}
 .section{margin-bottom:16px;}
@@ -256,8 +261,9 @@ body{
 </div>
 
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
+  <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.68 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.69 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1491,5 +1497,22 @@ window.confirmDeleteEntry=async function(){
 loadStats();
 </script>
 
+<script>
+/* scroll cue: bobbing down chevron when the page content is scrollable */
+(function(){
+  const c=document.getElementById('content'), b=document.getElementById('scrollBtn');
+  function upd(){
+    const atBottom=c.scrollTop+c.clientHeight>=c.scrollHeight-8;
+    const fits=c.scrollHeight<=c.clientHeight+8;
+    b.classList.toggle('hide',atBottom||fits);
+  }
+  b.addEventListener('click',()=>c.scrollBy({top:c.clientHeight*0.8,behavior:'smooth'}));
+  c.addEventListener('scroll',upd,{passive:true});
+  window.addEventListener('resize',upd);
+  new MutationObserver(upd).observe(c,{childList:true,subtree:true});
+  if(window.ResizeObserver) new ResizeObserver(upd).observe(c);
+  setInterval(upd,1000); upd();
+})();
+</script>
 </body>
 </html>
