@@ -250,7 +250,7 @@ body{
   </div>
 
   <div class="headline" id="hlAirlog" style="display:none;direction:ltr;justify-content:center;gap:28px;">
-    <div class="headline-item"><span class="headline-num" id="hlAlUsers">0</span><span class="headline-label">DEVICES</span></div>
+    <div class="headline-item"><span class="headline-num" id="hlAlUsers">0</span><span class="headline-label">USERS</span></div>
     <div class="headline-item"><span class="headline-num gold" id="hlAlFlights">0</span><span class="headline-label">FLIGHTS</span></div>
     <div class="headline-item"><span class="headline-num" id="hlAlOpens">0</span><span class="headline-label">OPENS / WK</span></div>
   </div>
@@ -278,7 +278,7 @@ body{
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.72 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.73 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1084,11 +1084,27 @@ function alBuildWeeks(entries){
   return out;
 }
 function alName(id){const d=(window._adminAirlog||{})[id]||{};return d.name||('Device '+id.slice(0,4));}
+function alMerge(entries){
+  const groups={},out=[];
+  entries.forEach(d=>{const k=(d.name||'').trim().toLowerCase();if(!k){out.push(d);return;}(groups[k]=groups[k]||[]).push(d);});
+  Object.values(groups).forEach(g=>{
+    if(g.length===1){out.push(g[0]);return;}
+    g.sort((x,y)=>atisNum(y.lastSeen)-atisNum(x.lastSeen));
+    const m=Object.assign({},g[0]);
+    m.opens=g.reduce((s,d)=>s+atisNum(d.opens),0);
+    m.daily={};
+    g.forEach(d=>Object.entries(d.daily||{}).forEach(([day,v])=>{const t=m.daily[day]||(m.daily[day]={o:0,f:0});t.o+=atisNum(v&&v.o);t.f+=atisNum(v&&v.f);}));
+    m.flights=Math.max.apply(null,g.map(d=>atisNum(d.flights)));
+    m.devs=g.length;
+    out.push(m);
+  });
+  return out;
+}
 function airlogBuildTab(data,err){
   window._airlogHeadline={u:0,f:0,o:0};window._alNeedsDraw=false;
   if(err)return '<div class="empty">Could not read airlog/devices.<br>'+atisEsc(err)+'</div>';
-  const entries=Object.entries(data||{}).filter(([k,p])=>p&&typeof p==='object').map(([id,d])=>Object.assign({id},d));
-  if(!entries.length)return '<div class="empty">No data yet.<br>Devices appear here after they open AirLog v2.34.040 or later.</div>';
+  const entries=alMerge(Object.entries(data||{}).filter(([k,p])=>p&&typeof p==='object').map(([id,d])=>Object.assign({id},d)));
+  if(!entries.length)return '<div class="empty">No data yet.<br>Users appear here after they open AirLog v2.34.040 or later.</div>';
   const n=entries.length,DAY=86400000,now=Date.now();
   const flights=entries.reduce((s,d)=>s+atisNum(d.flights),0);
   const wkOpens=entries.reduce((s,d)=>s+Object.entries(d.daily||{}).reduce((a,[day,v])=>a+((now-new Date(day).getTime())<7*DAY?atisNum(v&&v.o):0),0),0);
@@ -1107,12 +1123,13 @@ function airlogBuildTab(data,err){
   const ago=ts=>{const d=Math.floor((now-ts)/DAY);return d<=0?'today':d===1?'yesterday':d+'d ago';};
   const users=entries.slice().sort((a,b)=>atisNum(b.lastSeen)-atisNum(a.lastSeen)).map(d=>{
     const age=(now-atisNum(d.lastSeen))/DAY;const cls=age<7?'':age<30?' idle':' cold';
-    return `<div class="al-user"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${atisEsc(d.os||'')} &middot; ${atisEsc(d.appVersion||'')} &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>FLIGHTS</small></div></div>`;}).join('');
+    return `<div class="al-user"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${d.devs>1?d.devs+' devices &middot; ':''}${atisEsc(d.os||'')} &middot; ${atisEsc(d.appVersion||'')} &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>FLIGHTS</small></div></div>`;}).join('');
   const os={iOS:0,Android:0,Desktop:0};entries.forEach(d=>{os[d.os==='iOS'||d.os==='Android'?d.os:'Desktop']++;});
   const osHtml=barRow('iOS',os.iOS,n,'var(--ink)')+barRow('Android',os.Android,n,'var(--cleared)')+barRow('Desktop',os.Desktop,n,'var(--amber)');
   return `<div class="section"><div class="section-title">WEEKLY - AIRLOG OPENS &amp; FLIGHTS</div>${weekly}</div>`+
-    section('DEVICES ('+n+')',users)+
-    section('OS DISTRIBUTION',osHtml);
+    section('USERS ('+n+')',users)+
+    section('OS DISTRIBUTION',osHtml)+
+    section('IMPORT FROM OLD ADMIN',`<div style="direction:ltr;text-align:left;"><button class="range-pill" style="width:100%;" onclick="alImport()">IMPORT OLD DATA (ONE TIME)</button><div class="fun-note" id="alImpMsg">READS THE OLD AIRLOG ADMIN SHEET AND COPIES USERS, FLIGHTS AND OPENS INTO FIREBASE. SAFE TO RUN AGAIN.</div></div>`);
 }
 let _alRange='4',_alFrom=null,_alTo=null,_alChart=null;
 window.alSetRange=function(r){_alRange=r;alDrawTrend();};
@@ -1131,6 +1148,61 @@ function alDrawTrend(){
   if(_alChart){try{_alChart.destroy();}catch(e){}_alChart=null;}
   _alChart=adminLineChart(el,slice.map(w=>w.label),slice.map(w=>w.o),slice.map(w=>w.f),'opens','flights logged');
 }
+
+/* one-time import of the old AirLog admin data (Apps Script sheet) into airlog/devices/{userId} */
+const AL_OLD_GAS='https://script.google.com/macros/s/AKfycbwMROMQAzdAz-dCNdAbLn2axJ9X9vQW8ibWr3bFI6A35hRJIn9-pLJUVvDhlmT6IY8/exec';
+const AL_FB_URL='https://aircheck-80530-default-rtdb.europe-west1.firebasedatabase.app';
+function alParseDate(str){
+  if(!str)return new Date(0);str=String(str).trim();
+  const iso=str.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(iso){const y=+iso[1],M=+iso[2],d=+iso[3];
+    if(M>12&&d<=12)return new Date(y,d-1,M,+iso[4],+iso[5],+(iso[6]||0));
+    if(M>=1&&M<=12)return new Date(y,M-1,d,+iso[4],+iso[5],+(iso[6]||0));
+    return new Date(0);}
+  const dmy=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(dmy)return new Date(+dmy[3],+dmy[2]-1,+dmy[1],+dmy[4],+dmy[5],+(dmy[6]||0));
+  const x=new Date(str);return isNaN(x.getTime())?new Date(0):x;
+}
+window.alImport=async function(){
+  const msg=document.getElementById('alImpMsg');const say=t=>{if(msg)msg.textContent=t;};
+  if(!confirm('Copy the old AirLog admin data into Firebase now?'))return;
+  try{
+    say('READING OLD DATA...');
+    const res=await fetch(AL_OLD_GAS+'?action=getEvents');const data=await res.json();
+    const ev=(data&&data.events)||[];
+    if(!ev.length){say('NO EVENTS FOUND IN THE OLD ADMIN.');return;}
+    const users={};
+    ev.forEach(e=>{
+      const id=String(e.userId||'').trim().toLowerCase();
+      if(!/^[a-z0-9]{8,32}$/.test(id))return;
+      const t=alParseDate(e.timestamp);if(!t.getTime())return;
+      const u=users[id]||(users[id]={name:'',os:'',appVersion:'',pwa:false,flights:null,flightsT:0,opens:0,last:0,daily:{}});
+      if(e.sheetName)u.name=String(e.sheetName).trim().slice(0,40);
+      const o=String(e.os||'');
+      if(t.getTime()>=u.last){u.last=t.getTime();u.os=/iOS|iPadOS|iPhone|iPad/i.test(o)?'iOS':/Android/i.test(o)?'Android':'Desktop';
+        if(/^v[0-9.]{1,20}$/.test(String(e.appVersion||'')))u.appVersion=String(e.appVersion);
+        u.pwa=(e.isPWA===true||String(e.isPWA).toLowerCase()==='true');}
+      if(e.totalFlights!==undefined&&e.totalFlights!==''&&t.getTime()>u.flightsT){u.flightsT=t.getTime();u.flights=Math.max(0,parseInt(e.totalFlights)||0);}
+      const day=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
+      const dd=u.daily[day]||(u.daily[day]={o:0,f:0});
+      if(e.event==='app_open'){u.opens++;dd.o++;}
+      if(e.event==='flight_recorded')dd.f++;
+    });
+    const ids=Object.keys(users);let ok=0,fail=0;
+    for(const id of ids){
+      const u=users[id];
+      const rec={os:u.os||'Desktop',pwaInstalled:u.pwa,lastSeen:u.last,opens:u.opens,daily:u.daily};
+      if(u.appVersion)rec.appVersion=u.appVersion;
+      if(u.name)rec.name=u.name;
+      if(u.flights!==null)rec.flights=u.flights;
+      const r=await fetch(AL_FB_URL+'/airlog/devices/'+id+'.json',{method:'PUT',body:JSON.stringify(rec)});
+      if(r.ok)ok++;else fail++;
+      say('COPIED '+(ok+fail)+' OF '+ids.length+'...');
+    }
+    say('DONE: '+ok+' USERS COPIED'+(fail?(', '+fail+' FAILED (CHECK THE RULES)'):'')+' FROM '+ev.length+' EVENTS.');
+    if(ok&&typeof refreshStats==='function')setTimeout(refreshStats,800);
+  }catch(e){say('IMPORT FAILED: '+((e&&e.message)||e));}
+};
 
 async function loadStats(){
   try{
