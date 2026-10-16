@@ -360,7 +360,7 @@ button.lsa-foot-slot{cursor:pointer;padding:8px 0;}
 <div class="lsa-foot" dir="ltr">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="lsa-foot-slot icon-refresh" id="footerRefreshBtn" onclick="refreshStats()" style="opacity:1;overflow:visible"><span class="refresh-glyph">↻</span><span id="lastUpdateLabel" style="opacity:.75">—</span></span>
-  <span class="lsa-foot-ver">AIRCHECK_ADMIN · v1.86 · built by eligrt</span>
+  <span class="lsa-foot-ver">AIRCHECK_ADMIN · v1.87 · built by eligrt</span>
   <button type="button" class="lsa-foot-reload" onclick="forceReload()">reload</button>
 </div>
 
@@ -1864,6 +1864,8 @@ loadStats();
   window.addEventListener('resize',upd);
   new MutationObserver(upd).observe(c,{childList:true,subtree:true});
   if(window.ResizeObserver) new ResizeObserver(upd).observe(c);
+/* desktop: wheel anywhere on the page scrolls the content (header and side margins used to swallow it) */
+window.addEventListener('wheel',function(e){var c=document.getElementById('content');if(!c||c.contains(e.target)||e.ctrlKey)return;if(Math.abs(e.deltaY)<Math.abs(e.deltaX))return;c.scrollTop+=e.deltaY;e.preventDefault();},{passive:false});
   setInterval(upd,1000); upd();
 })();
 </script>
