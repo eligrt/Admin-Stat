@@ -294,7 +294,7 @@ body{
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.77 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.78 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1165,7 +1165,7 @@ function airlogBuildTab(data,err){
   const row=(d,isT)=>{
     const age=(now-atisNum(d.lastSeen))/DAY;const cls=age<7?'':age<30?' idle':' cold';
     const ids=d.devList.map(x=>x.id).join(',');
-    const det=d.devList.map(x=>`<div class="al-d">${atisEsc(String(x.id).slice(0,6))} &middot; ${atisEsc(x.os||'?')} &middot; ${atisEsc(x.appVersion||'')}${x.pwaInstalled?' &middot; PWA':''}<br><small>${ago(atisNum(x.lastSeen))} &middot; ${atisNum(x.opens)} opens &middot; ${atisNum(x.flights)} flights</small></div>`).join('');
+    const det=d.devList.map(x=>`<div class="al-d">${atisEsc(String(x.id).slice(0,6))} &middot; ${atisEsc(x.os||'?')} &middot; ${atisEsc(x.appVersion||'')}${x.pwaInstalled?' &middot; PWA':''}<br><small>${ago(atisNum(x.lastSeen))} &middot; ${atisNum(x.opens)} opens &middot; ${atisNum(x.flights)} flights${(x.viaTb||x.viaDirect)?' &middot; '+atisNum(x.viaTb)+' via Toolbox / '+atisNum(x.viaDirect)+' direct':''}</small></div>`).join('');
     const on=window._alSelId===d.id;
     return `<div class="al-grp${isT?' istest':''}${on?' open sel':''}"><div class="al-user" onclick="alSelect('${d.id}',this)"><span class="al-dot${cls}"></span><div class="nm">${atisEsc(alName(d.id))}<small>${d.devs>1?d.devs+' devices':'1 device'} &middot; ${atisNum(d.opens)} opens &middot; ${ago(atisNum(d.lastSeen))}</small></div><div class="fl">${atisNum(d.flights)}<small>FLIGHTS</small></div><span class="al-chev">&rsaquo;</span></div><div class="al-det">${det}<button class="al-tbtn" onclick="alSetTest('${ids}',${isT?'false':'true'})">${isT?'UNMARK TEST DEVICE':'MARK AS TEST DEVICE'}</button></div></div>`;};
   const byLast=(a,b)=>atisNum(b.lastSeen)-atisNum(a.lastSeen);
@@ -1173,10 +1173,13 @@ function airlogBuildTab(data,err){
   const testRows=tests.slice().sort(byLast).map(d=>row(d,true)).join('');
   const os={iOS:0,Android:0,Desktop:0};let nd=0;
   entries.forEach(d=>d.devList.forEach(x=>{os[x.os==='iOS'||x.os==='Android'?x.os:'Desktop']++;nd++;}));
+  let vTb=0,vDir=0;entries.forEach(d=>d.devList.forEach(x=>{vTb+=atisNum(x.viaTb);vDir+=atisNum(x.viaDirect);}));
+  const vTot=vTb+vDir;
+  const viaHtml=vTot?(barRow('Via Toolbox',vTb,vTot,'var(--ink)')+barRow('Direct (own icon or link)',vDir,vTot,'var(--amber)')+'<div class="fun-note">COUNTED FROM AIRLOG V2.34.044. EARLIER OPENS ARE NOT SPLIT.</div>'):'<div class="empty">No data yet. Appears once users update AirLog to v2.34.044 or later.</div>';
   const osHtml=barRow('iOS',os.iOS,nd,'var(--ink)')+barRow('Android',os.Android,nd,'var(--cleared)')+barRow('Desktop',os.Desktop,nd,'var(--amber)');
   return `<div class="al-sticky">${weekly}</div>`+
     section('USERS ('+n+')',users)+
-    section('OS DISTRIBUTION (DEVICES: '+nd+')',osHtml)+(tests.length?section('TEST DEVICES ('+tests.length+') - EXCLUDED',testRows):'');
+    section('HOW OPENED',viaHtml)+section('OS DISTRIBUTION (DEVICES: '+nd+')',osHtml)+(tests.length?section('TEST DEVICES ('+tests.length+') - EXCLUDED',testRows):'');
 }
 let _alRange='4',_alChart=null;
 window.alSetRange=function(r){_alRange=r;alDrawTrend();};
