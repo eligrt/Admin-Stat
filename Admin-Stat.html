@@ -223,6 +223,7 @@ body{
 .range-pill.active{background:var(--ink);border-color:var(--ink);color:#f4ecdc;font-weight:700;}
 .range-custom{display:none;align-items:center;gap:6px;margin-bottom:8px;font-family:var(--font-mono);font-size:10px;color:var(--ink-faint);}
 .range-custom.open{display:flex;}
+.range-custom input[type=date]{flex:1;min-width:0;padding:4px 4px;background:#fff;border:1px solid var(--paper-edge);border-radius:5px;font-family:var(--font-mono);font-size:11px;color:var(--ink);}
 .range-custom select{flex:1;min-width:0;padding:5px 4px;background:#fff;border:1px solid var(--paper-edge);border-radius:5px;font-family:var(--font-mono);font-size:11px;color:var(--ink);}
 .range-sum{font-family:var(--font-mono);font-size:10px;color:var(--ink-faint);margin-bottom:6px;}
 
@@ -293,7 +294,7 @@ body{
 <div class="footer-strip" dir="ltr" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:8px 22px calc(8px + env(safe-area-inset-bottom));border-top:1px solid var(--gold-lite);">
   <button class="scroll-btn hide" id="scrollBtn" aria-label="Scroll down"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
   <span class="footer-reload" onclick="forceReload()">reload</span>
-  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.76 · built by eligrt</span>
+  <span style="flex:1;min-width:0;text-align:center;font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 6px;">AIRCHECK_ADMIN · v1.77 · built by eligrt</span>
   <span class="icon-refresh" id="footerRefreshBtn" onclick="refreshStats()">
     <span class="refresh-glyph">↻</span>
     <span id="lastUpdateLabel" style="font-family:var(--font-mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em;white-space:nowrap;">—</span>
@@ -1134,7 +1135,7 @@ window.alSelect=function(id,row){
   document.querySelectorAll('.al-grp.open').forEach(x=>x.classList.remove('open','sel'));
   if(was){window._alSelId=null;}else{g.classList.add('open','sel');window._alSelId=id;}
   const sel=window._alSelId?(window._alMap||{})[window._alSelId]:null;
-  window._alWeeks=alBuildWeeks(window._alEntries||[],sel);alDrawTrend();
+  window._alWeeks=alBuildWeeks(window._alEntries||[],sel);window._alVals=sel?[sel]:(window._alEntries||[]);alDrawTrend();
 };
 function airlogBuildTab(data,err){
   window._airlogHeadline={u:0,f:0,o:0};window._alNeedsDraw=false;
@@ -1149,14 +1150,14 @@ function airlogBuildTab(data,err){
   window._alEntries=entries;window._alMap={};all.forEach(d=>{window._alMap[d.id]=d;});
   if(window._alSelId&&!window._alMap[window._alSelId])window._alSelId=null;
   const selE=window._alSelId?window._alMap[window._alSelId]:null;
-  window._alWeeks=alBuildWeeks(entries,selE);window._alNeedsDraw=window._alWeeks.length>0;
+  window._alWeeks=alBuildWeeks(entries,selE);window._alVals=selE?[selE]:entries;window._alNeedsDraw=true;
   const weekly=`<div style="direction:ltr;text-align:left;">
     <div class="range-pills">
       <button class="range-pill" data-ar="4" onclick="alSetRange('4')">4 WEEKS</button>
       <button class="range-pill" data-ar="12" onclick="alSetRange('12')">12 WEEKS</button>
       <button class="range-pill" data-ar="custom" onclick="alSetRange('custom')">CUSTOM</button>
     </div>
-    <div class="range-custom" id="alCustom"><span>FROM</span><select id="alFrom" onchange="alOnCustom()"></select><span>TO</span><select id="alTo" onchange="alOnCustom()"></select></div>
+    <div class="range-custom" id="alCustom"><span>FROM</span><input type="date" id="alFromD" onchange="alOnCustom()"><span>TO</span><input type="date" id="alToD" onchange="alOnCustom()"></div>
     <div class="range-sum" id="alSum"></div>
     <div style="position:relative;width:100%;height:112px;"><canvas id="alTrend"></canvas></div></div>`;
   // users
@@ -1177,22 +1178,54 @@ function airlogBuildTab(data,err){
     section('USERS ('+n+')',users)+
     section('OS DISTRIBUTION (DEVICES: '+nd+')',osHtml)+(tests.length?section('TEST DEVICES ('+tests.length+') - EXCLUDED',testRows):'');
 }
-let _alRange='4',_alFrom=null,_alTo=null,_alChart=null;
+let _alRange='4',_alChart=null;
 window.alSetRange=function(r){_alRange=r;alDrawTrend();};
-window.alOnCustom=function(){_alFrom=parseInt(document.getElementById('alFrom').value,10);_alTo=parseInt(document.getElementById('alTo').value,10);alDrawTrend();};
+window.alOnCustom=function(){alDrawTrend();};
+function alYMD(d){const p=v=>String(v).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+function alParseYMD(s){const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||'');return m?new Date(+m[1],+m[2]-1,+m[3]):null;}
+/* custom range: daily points up to 45 days, weekly buckets beyond */
+function alSeriesRange(vals,from,to){
+  const tot={};
+  vals.forEach(d=>Object.entries(d.daily||{}).forEach(([day,v])=>{const t=tot[day]||(tot[day]={o:0,f:0});t.o+=atisNum(v&&v.o);t.f+=atisNum(v&&v.f);}));
+  const days=Math.round((new Date(to.getFullYear(),to.getMonth(),to.getDate())-new Date(from.getFullYear(),from.getMonth(),from.getDate()))/86400000)+1;
+  const labels=[],o=[],f=[],lab=dt=>ATIS_MON[dt.getMonth()]+' '+dt.getDate();
+  if(days<=45){
+    for(let i=0;i<days;i++){const dt=new Date(from.getFullYear(),from.getMonth(),from.getDate()+i),t=tot[alYMD(dt)]||{o:0,f:0};labels.push(lab(dt));o.push(t.o);f.push(t.f);}
+    return {labels,o,f,unit:days+' days'};
+  }
+  const buckets={},order=[];
+  for(let i=0;i<days;i++){
+    const dt=new Date(from.getFullYear(),from.getMonth(),from.getDate()+i),sun=new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()-dt.getDay()),k=sun.getTime(),t=tot[alYMD(dt)]||{o:0,f:0};
+    if(!buckets[k]){buckets[k]={o:0,f:0,label:lab(sun)};order.push(k);}
+    buckets[k].o+=t.o;buckets[k].f+=t.f;
+  }
+  order.forEach(k=>{labels.push(buckets[k].label);o.push(buckets[k].o);f.push(buckets[k].f);});
+  return {labels,o,f,unit:order.length+' wks'};
+}
 function alDrawTrend(){
-  const el=document.getElementById('alTrend'),all=window._alWeeks||[],n=all.length;if(!el||!n)return;
-  if(_alFrom===null||_alTo===null||_alTo>=n||_alFrom>=n){_alTo=n-1;_alFrom=Math.max(0,n-8);}
-  let a,b;if(_alRange==='custom'){a=Math.min(_alFrom,_alTo);b=Math.max(_alFrom,_alTo);}else{b=n-1;a=Math.max(0,n-parseInt(_alRange,10));}
-  const slice=all.slice(a,b+1);
+  const el=document.getElementById('alTrend');if(!el)return;
   document.querySelectorAll('.range-pill[data-ar]').forEach(p=>p.classList.toggle('active',p.dataset.ar===_alRange));
   const cw=document.getElementById('alCustom');if(cw)cw.classList.toggle('open',_alRange==='custom');
-  const opts=all.map((w,i)=>`<option value="${i}">${w.full}</option>`).join('');
-  const fs=document.getElementById('alFrom'),ts=document.getElementById('alTo');if(fs&&ts){fs.innerHTML=opts;ts.innerHTML=opts;fs.value=String(a);ts.value=String(b);}
-  const so=slice.reduce((x,w)=>x+w.o,0),sf=slice.reduce((x,w)=>x+w.f,0),sum=document.getElementById('alSum');
-  if(sum){const se=window._alSelId?(window._alMap||{})[window._alSelId]:null;sum.innerHTML=atisEsc(se?alName(se.id):'ALL USERS')+` &middot; ${slice.length} wks &middot; <span style="color:#1c3d6e">&#9632;</span> ${so} opens <span style="color:#1f6f3f">&#9632;</span> ${sf} flights`;}
+  let labels,mo,mf,unit;
+  if(_alRange==='custom'){
+    const fi=document.getElementById('alFromD'),ti=document.getElementById('alToD');
+    const today=new Date();
+    if(fi&&!fi.value)fi.value=alYMD(new Date(today.getFullYear(),today.getMonth(),today.getDate()-29));
+    if(ti&&!ti.value)ti.value=alYMD(today);
+    let a=alParseYMD(fi&&fi.value),b=alParseYMD(ti&&ti.value);
+    if(!a||!b)return;
+    if(a>b){const t=a;a=b;b=t;}
+    const s=alSeriesRange(window._alVals||[],a,b);labels=s.labels;mo=s.o;mf=s.f;unit=s.unit;
+  }else{
+    const all=window._alWeeks||[],n=all.length;
+    if(!n){if(_alChart){try{_alChart.destroy();}catch(e){}_alChart=null;}const sm=document.getElementById('alSum');if(sm)sm.textContent='No data yet';return;}
+    const k=Math.min(parseInt(_alRange,10),n),slice=all.slice(n-k);
+    labels=slice.map(w=>w.label);mo=slice.map(w=>w.o);mf=slice.map(w=>w.f);unit=slice.length+' wks';
+  }
+  const so=mo.reduce((x,y)=>x+y,0),sf=mf.reduce((x,y)=>x+y,0),sum=document.getElementById('alSum');
+  if(sum){const se=window._alSelId?(window._alMap||{})[window._alSelId]:null;sum.innerHTML=atisEsc(se?alName(se.id):'ALL USERS')+` &middot; ${unit} &middot; <span style="color:#1c3d6e">&#9632;</span> ${so} opens <span style="color:#1f6f3f">&#9632;</span> ${sf} flights`;}
   if(_alChart){try{_alChart.destroy();}catch(e){}_alChart=null;}
-  _alChart=adminLineChart(el,slice.map(w=>w.label),slice.map(w=>w.o),slice.map(w=>w.f),'opens','flights logged',true);
+  _alChart=adminLineChart(el,labels,mo,mf,'opens','flights logged',true);
 }
 
 const AL_FB_URL='https://aircheck-80530-default-rtdb.europe-west1.firebasedatabase.app';
